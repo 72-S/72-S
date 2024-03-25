@@ -1,13 +1,19 @@
 <h2 align="left">Hi 👋! My name is Consti and I'm  from Bavaria</h2>
 
 ###
-- 🔭 I’m currently working on: [CraftCore](https://github.com/72-S/CraftCore)
 
-- 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)
+<p align="left">- 🔭 I’m currently working on: [CraftCore](https://github.com/72-S/CraftCore)<br><br>- 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)<br><br>- 📫 How to reach me on Discord: **72s**<br><br>- ⚡ Fun fact: **Started learning coding with Minecraft Commands**</p>
 
-- 📫 How to reach me on Discord: **72s**
+###
 
-- ⚡ Fun fact: **Started learning coding with Minecraft Commands**
+<div align="left">
+  <a href="https://www.instagram.com/consti.bauer" target="_blank">
+    <img src="https://img.shields.io/static/v1?message=Instagram&logo=instagram&label=&color=E4405F&logoColor=white&labelColor=&style=for-the-badge" height="35" alt="instagram logo"  />
+  </a>
+  <a href="https://dev.to/72s" target="_blank">
+    <img src="https://img.shields.io/static/v1?message=dev.to&logo=dev.to&label=&color=0A0A0A&logoColor=white&labelColor=&style=for-the-badge" height="35" alt="devto logo"  />
+  </a>
+</div>
 
 ###
 
@@ -52,12 +58,14 @@
 ###
 
 <div align="left">
-  <a href="https://www.instagram.com/consti.bauer" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=Instagram&logo=instagram&label=&color=E4405F&logoColor=white&labelColor=&style=for-the-badge" height="35" alt="instagram logo"  />
-  </a>
-  <a href="https://dev.to/72s" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=dev.to&logo=dev.to&label=&color=0A0A0A&logoColor=white&labelColor=&style=for-the-badge" height="35" alt="devto logo"  />
-  </a>
+  <img src="https://github-readme-stats.vercel.app/api?username=72-S&hide_title=false&hide_rank=false&show_icons=true&include_all_commits=true&count_private=true&disable_animations=false&theme=dracula&locale=en&hide_border=false" height="150" alt="stats graph"  />
+  <img src="https://github-readme-stats.vercel.app/api/top-langs?username=72-S&locale=en&hide_title=false&layout=compact&card_width=320&langs_count=5&theme=dracula&hide_border=false" height="150" alt="languages graph"  />
 </div>
+
+###
+
+<br clear="both">
+
+<img src="https://raw.githubusercontent.com/72-S/72-S/output/snake.svg" alt="Snake animation" />
 
 ###
