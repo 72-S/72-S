@@ -2,7 +2,10 @@
 
 ###
 
-<p align="left">- 🔭 I’m currently working on: [CraftCore](https://github.com/72-S/CraftCore)<br><br>- 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)<br><br>- 📫 How to reach me on Discord: **72s**<br><br>- ⚡ Fun fact: **Started learning coding with Minecraft Commands**</p>
+- 🔭 I’m currently working on: [CraftCore](https://github.com/72-S/CraftCore)
+- 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)
+- 📫 How to reach me on Discord: **72s**
+- ⚡ Fun fact: **Started learning coding with Minecraft Commands**
 
 ###
 
