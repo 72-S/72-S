@@ -1,8 +1,13 @@
 <h2 align="left">Hi 👋! My name is Consti and I'm  from Bavaria</h2>
 
 ###
+- 🔭 I’m currently working on: [CraftCore](https://github.com/72-S/CraftCore)
 
-<img align="right" height="150" src="https://i.imgflip.com/65efzo.gif"  />
+- 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)
+
+- 📫 How to reach me on Discord: **72s**
+
+- ⚡ Fun fact: **Started learning coding with Minecraft Commands**
 
 ###
 
