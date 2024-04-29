@@ -2,7 +2,7 @@
 
 ###
 
-- 🔭 I’m currently working on: [CraftCore](https://github.com/72-S/CraftCore)
+- 🔭 I’m currently working on: [CommandBridge](https://github.com/72-S/CommandBridge)
 - 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)
 - 📫 How to reach me on Discord: **72s**
 - ⚡ Fun fact: **Started learning coding with Minecraft Commands**
