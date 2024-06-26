@@ -1,4 +1,4 @@
-<h2 align="left">Hi 👋! My name is Consti and I'm  from Bavaria</h2>
+<h2 align="left">Hi 👋! My name is Consti and I'm from Bavaria</h2>
 
 ###
 
@@ -6,6 +6,7 @@
 - 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)
 - 📫 How to reach me on Discord: **72s**
 - ⚡ Fun fact: **Started learning coding with Minecraft Commands**
+- Btw i use Arch
 
 ###
 
