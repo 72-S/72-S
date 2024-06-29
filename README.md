@@ -6,7 +6,7 @@
 - 🏫 Grade Manager with Vanilla JS: [Notenmanager.online](https://notenmanager.online)
 - 📫 How to reach me on Discord: **72s**
 - ⚡ Fun fact: **Started learning coding with Minecraft Commands**
-- Btw i use Arch
+- 🔥 **I use Arch btw**
 
 ###
 
