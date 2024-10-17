@@ -8,7 +8,7 @@ Hi ![](https://user-images.githubusercontent.com/18350557/176309783-0785949b-912
 ### Skills
 
 <p align="left">
-[![My Skills](https://skillicons.dev/icons?i=c,cpp,java,rust,linux,arch,neovim)](https://skillicons.dev)
+[My Skills](https://skillicons.dev/icons?i=c,cpp,rust,java,linux,arch,neovim)](https://skillicons.dev)
 </p>
 
 <br clear="both">
