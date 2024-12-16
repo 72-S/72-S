@@ -2,7 +2,7 @@ Hi ![](https://user-images.githubusercontent.com/18350557/176309783-0785949b-912
 ==============================================================================================================================
 
 * 🌍  I'm based in Bavaria - Germany
-* 🚀  I'm currently working on [CommandBridge](https://github.com/72-S/CommandBridge) and [SocketLib](https://github.com/72-S/SocketLib)
+* 🚀  I'm currently working on [CommandBridge](https://github.com/72-S/CommandBridge) and [Sonar](https://github.com/72-S/Sonar)
 
 ### Skills
 [![My Skills](https://skillicons.dev/icons?i=c,cpp,rust,java,linux,arch,neovim)](https://skillicons.dev)
