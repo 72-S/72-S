@@ -164,11 +164,41 @@ lazy_static! {
             ])
         }
     });
-    static ref CURRENT_PATH: Mutex<Vec<String>> = Mutex::new(vec!["home".to_string(), "objz".to_string()]);
+    pub static ref CURRENT_PATH: Mutex<Vec<String>> = Mutex::new(vec!["home".to_string(), "objz".to_string()]);
     static ref CURRENT_USER: String = "anonym".to_string();
 }
 
-fn normalize_path(path: &str, current: &[String]) -> Vec<String> {
+pub fn get_filesystem_entries(path: &[String], dirs_only: bool) -> Vec<String> {
+    let filesystem = FILESYSTEM.lock().unwrap();
+
+    match get_node_at_path(&filesystem, path) {
+        Some(Node::Directory { children, .. }) => {
+            let mut entries: Vec<String> = children
+                .iter()
+                .filter_map(|(name, node)| {
+                    if dirs_only {
+                        match node {
+                            Node::Directory { .. } => Some(format!("{}/", name)),
+                            _ => None,
+                        }
+                    } else {
+                        match node {
+                            Node::Directory { .. } => Some(format!("{}/", name)),
+                            Node::File { .. } => Some(name.clone()),
+                            Node::Symlink { .. } => Some(format!("{}@", name)),
+                        }
+                    }
+                })
+                .collect();
+
+            entries.sort();
+            entries
+        }
+        _ => Vec::new(),
+    }
+}
+
+pub fn normalize_path(path: &str, current: &[String]) -> Vec<String> {
     if path.starts_with('/') {
         let mut result = Vec::new();
         for part in path.split('/').filter(|s| !s.is_empty()) {

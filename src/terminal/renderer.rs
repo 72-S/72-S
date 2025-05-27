@@ -44,6 +44,7 @@ impl Terminal {
             scroll_to_bottom(&self.output_element);
             self.sleep(speed as i32).await;
         }
+        div.set_inner_html(&buf);
         ensure_autoscroll();
     }
 
@@ -65,6 +66,7 @@ impl Terminal {
             scroll_to_bottom(&self.output_element);
             self.sleep(speed as i32).await;
         }
+        div.set_inner_html(&buf);
         ensure_autoscroll();
     }
 

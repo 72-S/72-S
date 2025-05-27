@@ -116,6 +116,12 @@ body {
   overflow: hidden;
 }
 
+.completion {
+  color: #888;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  white-space: pre;
+}
+
 .terminal-input-field {
   background: transparent;
   border: none;

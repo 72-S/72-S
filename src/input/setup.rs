@@ -120,9 +120,7 @@ impl Terminal {
         let out_el = self.output_element.clone();
         let mut history = {
             let mut h = CommandHistory::new(50);
-            for cmd in &[
-                "help", "about", "projects", "skills", "contact", "clear", "ls", "whoami",
-            ] {
+            for cmd in &["help", "clear", "ls"] {
                 h.add(cmd.to_string());
             }
             h
@@ -131,7 +129,102 @@ impl Terminal {
         let base_prompt = self.base_prompt.clone();
         let clone_in = input.clone();
 
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let autocomplete = Rc::new(RefCell::new(
+            crate::terminal::autocomplete::AutoComplete::new(),
+        ));
+
         let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
+            "Tab" => {
+                ev.prevent_default();
+
+                let current_input = clone_in.value();
+                let current_path = {
+                    use crate::commands::filesystem::CURRENT_PATH;
+                    CURRENT_PATH.lock().unwrap().clone()
+                };
+
+                let completion_result = autocomplete
+                    .borrow_mut()
+                    .complete(&current_input, &current_path);
+
+                match completion_result {
+                    crate::terminal::autocomplete::CompletionResult::Single(completion) => {
+                        let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
+                        if parts.len() <= 1 {
+                            clone_in.set_value(&format!("{} ", completion));
+                        } else {
+                            let mut new_parts = parts[..parts.len() - 1].to_vec();
+                            new_parts.push(&completion);
+                            clone_in.set_value(&format!("{} ", new_parts.join(" ")));
+                        }
+
+                        let text_length = clone_in.value().len() as u32;
+                        let _ = clone_in.set_selection_range(text_length, text_length);
+                    }
+                    crate::terminal::autocomplete::CompletionResult::Multiple(matches) => {
+                        let current_prompt = {
+                            let cwd = processor.get_current_directory();
+                            let display_path = if cwd == "/home/objz" {
+                                "~".to_string()
+                            } else if cwd.starts_with("/home/objz/") {
+                                format!("~{}", &cwd["/home/objz".len()..])
+                            } else {
+                                cwd
+                            };
+                            format!("{}:{}$ ", base_prompt, display_path)
+                        };
+
+                        let line = format!("{}{}", current_prompt, current_input);
+                        append_line(&out_el, &line, Some("command"));
+
+                        let matches_per_line = 4;
+                        let mut output = String::new();
+                        for chunk in matches.chunks(matches_per_line) {
+                            let line = chunk
+                                .iter()
+                                .map(|s| format!("{:<20}", s))
+                                .collect::<Vec<_>>()
+                                .join("");
+                            output.push_str(&line);
+                            output.push('\n');
+                        }
+
+                        for line in output.lines() {
+                            if !line.trim().is_empty() {
+                                append_line(&out_el, line, Some("completion"));
+                            }
+                        }
+
+                        if let Some(common_prefix) =
+                            crate::terminal::autocomplete::find_common_prefix(&matches)
+                        {
+                            let parts: Vec<&str> =
+                                current_input.trim().split_whitespace().collect();
+                            if parts.len() <= 1 {
+                                if common_prefix.len() > current_input.trim().len() {
+                                    clone_in.set_value(&common_prefix);
+                                }
+                            } else {
+                                let current_partial = parts.last().map_or("", |v| v); // fix lol
+                                if common_prefix.len() > current_partial.len() {
+                                    let mut new_parts = parts[..parts.len() - 1].to_vec();
+                                    new_parts.push(&common_prefix);
+                                    clone_in.set_value(&new_parts.join(" "));
+                                }
+                            }
+
+                            let text_length = clone_in.value().len() as u32;
+                            let _ = clone_in.set_selection_range(text_length, text_length);
+                        }
+
+                        ensure_autoscroll();
+                    }
+                    crate::terminal::autocomplete::CompletionResult::None => {}
+                }
+            }
+
             "Enter" if !ev.shift_key() => {
                 ev.prevent_default();
                 let val = clone_in.value();
@@ -142,7 +235,6 @@ impl Terminal {
                 clone_in.style().set_property("height", "auto").unwrap();
                 clone_in.set_attribute("rows", "1").unwrap();
 
-                // Get current prompt before executing command
                 let current_prompt = {
                     let cwd = processor.get_current_directory();
                     let display_path = if cwd == "/home/objz" {
@@ -179,7 +271,6 @@ impl Terminal {
                     }
                 }
 
-                // UPDATE THE PROMPT MANUALLY (instead of using update_prompt())
                 if directory_changed {
                     let doc = window().unwrap().document().unwrap();
                     if let Some(prompt_element) =
@@ -199,13 +290,61 @@ impl Terminal {
                 }
             }
             "ArrowUp" => {
+                ev.prevent_default();
                 if let Some(cmd) = history.previous() {
                     clone_in.set_value(&cmd);
+                    clone_in.focus().unwrap();
+
+                    let text_length = cmd.len() as u32;
+                    let _ = clone_in.set_selection_range(text_length, text_length);
+                    let _ = clone_in.set_selection_start(Some(text_length));
+                    let _ = clone_in.set_selection_end(Some(text_length));
+
+                    let clone_for_timeout = clone_in.clone();
+                    let timeout_closure = Closure::wrap(Box::new(move || {
+                        let _ = clone_for_timeout.set_selection_range(text_length, text_length);
+                        let _ = clone_for_timeout.set_selection_start(Some(text_length));
+                        let _ = clone_for_timeout.set_selection_end(Some(text_length));
+                    }) as Box<dyn FnMut()>);
+
+                    window()
+                        .unwrap()
+                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                            timeout_closure.as_ref().unchecked_ref(),
+                            0,
+                        )
+                        .unwrap();
+                    timeout_closure.forget();
                 }
             }
             "ArrowDown" => {
+                ev.prevent_default();
                 if let Some(cmd) = history.next() {
                     clone_in.set_value(&cmd);
+                    clone_in.focus().unwrap();
+
+                    let text_length = cmd.len() as u32;
+                    let _ = clone_in.set_selection_range(text_length, text_length);
+                    let _ = clone_in.set_selection_start(Some(text_length));
+                    let _ = clone_in.set_selection_end(Some(text_length));
+
+                    let clone_for_timeout = clone_in.clone();
+                    let timeout_closure = Closure::wrap(Box::new(move || {
+                        let _ = clone_for_timeout.set_selection_range(text_length, text_length);
+                        let _ = clone_for_timeout.set_selection_start(Some(text_length));
+                        let _ = clone_for_timeout.set_selection_end(Some(text_length));
+                    }) as Box<dyn FnMut()>);
+
+                    window()
+                        .unwrap()
+                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                            timeout_closure.as_ref().unchecked_ref(),
+                            0,
+                        )
+                        .unwrap();
+                    timeout_closure.forget();
+                } else {
+                    clone_in.set_value("");
                 }
             }
             _ => {}
@@ -216,6 +355,7 @@ impl Terminal {
             .unwrap();
         handler.forget();
     }
+
     fn show_prompt(&self) {
         let doc = window().unwrap().document().unwrap();
         let input = doc
