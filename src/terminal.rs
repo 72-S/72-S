@@ -1,4 +1,3 @@
-use crate::animator::Animator;
 use crate::commands::CommandProcessor;
 use crate::utils::{append_line, scroll_to_bottom};
 use js_sys::Promise;
@@ -9,7 +8,6 @@ pub struct Terminal {
     pub output_element: Element,
     pub command_processor: CommandProcessor,
     pub prompt: String,
-    pub animator: Animator,
 }
 
 impl Terminal {
@@ -17,13 +15,11 @@ impl Terminal {
         let output_element = document.get_element_by_id("terminal-output").unwrap();
         let command_processor = CommandProcessor::new();
         let prompt = "objz@portfolio:~$ ".to_string();
-        let animator = Animator::new();
 
         Self {
             output_element,
             command_processor,
             prompt,
-            animator,
         }
     }
 

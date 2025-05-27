@@ -6,7 +6,7 @@
 
 body {
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
-  color: #00ff00;
+  color: #e6e6e6; /* Changed from green to light gray as default */
   font-family:
     "JetBrains Mono", "Fira Code", "Source Code Pro", "Consolas", monospace;
   font-size: 14px;
@@ -17,14 +17,14 @@ body {
 
 #terminal {
   background: rgba(26, 26, 26, 0.95);
-  border: 1px solid #333;
+  border: 1px solid #444; /* Slightly lighter border */
   border-radius: 8px;
   width: 95vw;
   height: 95vh;
   margin: 2.5vh auto;
   box-shadow:
-    0 0 30px rgba(0, 255, 0, 0.1),
-    0 0 60px rgba(0, 255, 0, 0.05);
+    0 0 30px rgba(100, 149, 237, 0.1),
+    /* Changed to blue glow */ 0 0 60px rgba(100, 149, 237, 0.05);
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(10px);
@@ -33,7 +33,7 @@ body {
 #terminal-header {
   background: linear-gradient(135deg, #2a2a2a 0%, #333 100%);
   padding: 8px 12px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #444;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -86,6 +86,7 @@ body {
   white-space: pre-wrap;
   word-wrap: break-word;
   margin-bottom: 8px;
+  color: #e6e6e6; /* Default text color */
 }
 
 .prompt-line {
@@ -94,67 +95,137 @@ body {
 }
 
 .prompt {
-  color: #00ff00;
+  color: #ff79c6; /* Pink prompt like many kitty themes */
   margin-right: 4px;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 10px rgba(255, 121, 198, 0.5);
+  font-weight: bold;
 }
 
 #terminal-input {
   background: transparent;
   border: none;
   outline: none;
-  color: #ffffff;
+  color: #f8f8f2; /* Slightly warm white for input */
   font-family: inherit;
   font-size: inherit;
   flex: 1;
-  caret-color: #00ff00;
+  caret-color: #ff79c6; /* Pink cursor */
 }
 
-/* Output styling */
+/* Enhanced Output styling with kitty-inspired colors */
 .command {
-  color: #ffffff;
+  color: #8be9fd; /* Cyan for commands */
+  text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
 }
 
 .error {
-  color: #ff6b6b;
-  text-shadow: 0 0 5px rgba(255, 107, 107, 0.3);
+  color: #ff5555; /* Bright red for errors */
+  text-shadow: 0 0 5px rgba(255, 85, 85, 0.3);
 }
 
 .success {
-  color: #51cf66;
-  text-shadow: 0 0 5px rgba(81, 207, 102, 0.3);
+  color: #50fa7b; /* Bright green for success */
+  text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
 }
 
 .info {
-  color: #74c0fc;
-  text-shadow: 0 0 5px rgba(116, 192, 252, 0.3);
+  color: #bd93f9; /* Purple for info */
+  text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
 }
 
 .warning {
-  color: #ffd43b;
-  text-shadow: 0 0 5px rgba(255, 212, 59, 0.3);
+  color: #ffb86c; /* Orange for warnings */
+  text-shadow: 0 0 5px rgba(255, 184, 108, 0.3);
 }
 
 .ascii {
-  color: #ffd43b;
+  color: #f1fa8c; /* Yellow for ASCII art */
   font-family: monospace;
   white-space: pre;
-  text-shadow: 0 0 10px rgba(255, 212, 59, 0.2);
+  text-shadow: 0 0 10px rgba(241, 250, 140, 0.2);
 }
 
+/* Additional color classes for more variety */
 .cyan {
-  color: #22d3ee;
-  text-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+  color: #8be9fd;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
 }
 
 .green {
-  color: #10b981;
-  text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  color: #50fa7b;
+  text-shadow: 0 0 10px rgba(80, 250, 123, 0.3);
 }
 
 .yellow {
-  color: #f59e0b;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+  color: #f1fa8c;
+  text-shadow: 0 0 10px rgba(241, 250, 140, 0.3);
+}
+
+.purple {
+  color: #bd93f9;
+  text-shadow: 0 0 10px rgba(189, 147, 249, 0.3);
+}
+
+.pink {
+  color: #ff79c6;
+  text-shadow: 0 0 10px rgba(255, 121, 198, 0.3);
+}
+
+.orange {
+  color: #ffb86c;
+  text-shadow: 0 0 10px rgba(255, 184, 108, 0.3);
+}
+
+.red {
+  color: #ff5555;
+  text-shadow: 0 0 10px rgba(255, 85, 85, 0.3);
+}
+
+.blue {
+  color: #6272a4;
+  text-shadow: 0 0 10px rgba(98, 114, 164, 0.3);
+}
+
+/* Special styling for different content types */
+.header {
+  color: #ff79c6;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 121, 198, 0.3);
+}
+
+.subheader {
+  color: #8be9fd;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
+}
+
+.highlight {
+  color: #f1fa8c;
+  background: rgba(241, 250, 140, 0.1);
+  padding: 2px 4px;
+  border-radius: 3px;
+  text-shadow: 0 0 5px rgba(241, 250, 140, 0.3);
+}
+
+.muted {
+  color: #6272a4;
+  text-shadow: none;
+}
+
+.link {
+  color: #8be9fd;
+  text-decoration: underline;
+  text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
+}
+
+.path {
+  color: #50fa7b;
+  text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
+}
+
+.number {
+  color: #bd93f9;
+  text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
 }
 
 /* Animations */
@@ -185,7 +256,7 @@ body {
 
 .typing {
   overflow: hidden;
-  border-right: 2px solid #00ff00;
+  border-right: 2px solid #ff79c6; /* Pink cursor */
   white-space: nowrap;
   animation:
     typing 2s steps(40, end),
@@ -198,7 +269,7 @@ body {
     border-color: transparent;
   }
   50% {
-    border-color: #00ff00;
+    border-color: #ff79c6;
   }
 }
 
@@ -235,13 +306,13 @@ body {
 /* Matrix effect */
 @keyframes matrix {
   0% {
-    color: #00ff00;
+    color: #50fa7b;
   }
   50% {
-    color: #008800;
+    color: #8be9fd;
   }
   100% {
-    color: #00ff00;
+    color: #50fa7b;
   }
 }
 
@@ -262,12 +333,12 @@ body {
 #terminal-body::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #333 0%, #555 100%);
   border-radius: 4px;
-  box-shadow: 0 0 5px rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 5px rgba(189, 147, 249, 0.1); /* Purple glow */
 }
 
 #terminal-body::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #444 0%, #666 100%);
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 10px rgba(189, 147, 249, 0.2);
 }
 
 /* Responsive design */

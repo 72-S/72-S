@@ -24,18 +24,6 @@ pub fn append_line(element: &Element, text: &str, class: Option<&str>) {
     element.append_child(&div).unwrap();
 }
 
-pub fn append_prompt(element: &Element, prompt: &str) {
-    let div = window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .create_element("div")
-        .unwrap();
-    div.set_class_name("prompt-line");
-    div.set_inner_html(&format!("<span class='prompt'>{}</span>", prompt));
-    element.append_child(&div).unwrap();
-}
-
 pub fn scroll_to_bottom(element: &Element) {
     if let Ok(html_element) = element.clone().dyn_into::<HtmlElement>() {
         html_element.set_scroll_top(html_element.scroll_height());

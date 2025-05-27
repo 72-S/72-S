@@ -1,5 +1,5 @@
 use crate::terminal::Terminal;
-use crate::utils::{append_line, append_prompt, clear_output, scroll_to_bottom, show_system_panic};
+use crate::utils::{append_line, clear_output, scroll_to_bottom, show_system_panic};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
@@ -63,10 +63,8 @@ impl Terminal {
                 } else if output == "SYSTEM_PANIC" {
                     spawn_local({
                         let output_element = output_element.clone();
-                        let prompt = prompt.clone();
                         async move {
                             show_system_panic(&output_element).await;
-                            append_prompt(&output_element, &prompt);
                         }
                     });
                 } else {
@@ -75,19 +73,37 @@ impl Terminal {
                             Some("error")
                         } else if line.contains("[OK]") || line.contains("SUCCESS") {
                             Some("success")
-                        } else if line.contains("GitHub:") || line.contains("http") {
+                        } else if line.starts_with("NAVIGATION:")
+                            || line.starts_with("SYSTEM:")
+                            || line.starts_with("PORTFOLIO:")
+                            || line.starts_with("NETWORK:")
+                            || line.starts_with("EASTER EGGS:")
+                        {
+                            Some("header")
+                        } else if line.starts_with("  ") && line.contains(" - ") {
                             Some("info")
+                        } else if line.contains("Available commands:")
+                            || line.contains("Type any command")
+                        {
+                            Some("subheader")
+                        } else if line.contains("GitHub:") || line.contains("http") {
+                            Some("link")
                         } else if line.contains("█") || line.contains("╔") || line.contains("┌")
                         {
                             Some("ascii")
-                        } else {
+                        } else if line.contains("/")
+                            && (line.contains("ls") || line.contains("cat"))
+                        {
+                            Some("directory")
+                        } else if line.is_empty() {
                             None
+                        } else {
+                            Some("file")
                         };
                         append_line(&output_element, line, class);
                     }
                 }
 
-                append_prompt(&output_element, &prompt);
                 scroll_to_bottom(&output_element);
             }
         }) as Box<dyn FnMut(_)>);
