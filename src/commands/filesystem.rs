@@ -49,7 +49,7 @@ impl Node {
 }
 
 lazy_static! {
-    static ref FILESYSTEM: Mutex<Node> = Mutex::new({
+    pub static ref FILESYSTEM: Mutex<Node> = Mutex::new({
         use Node::*;
         Directory {
             permissions: 0o755,
@@ -226,7 +226,7 @@ pub fn normalize_path(path: &str, current: &[String]) -> Vec<String> {
     }
 }
 
-fn get_node_at_path<'a>(root: &'a Node, path: &[String]) -> Option<&'a Node> {
+pub fn get_node_at_path<'a>(root: &'a Node, path: &[String]) -> Option<&'a Node> {
     let mut current = root;
     for part in path {
         if let Node::Directory { children, .. } = current {

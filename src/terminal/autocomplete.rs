@@ -5,9 +5,9 @@ pub struct AutoComplete {
 impl AutoComplete {
     pub fn new() -> Self {
         let commands = vec![
-            "help", "about", "projects", "skills", "contact", "clear", "ls", "ll", "whoami", "cd",
-            "cat", "pwd", "tree", "mkdir", "touch", "rm", "uname", "ln", "history", "echo", "date",
-            "uptime", "neofetch",
+            "help", "clear", "history", "echo", "date", "uptime", "neofetch", "uname", "ls", "ll",
+            "cd", "cat", "pwd", "tree", "mkdir", "touch", "rm", "ln", "sudo", "cowsay", "sl",
+            "lolcat", "calc",
         ]
         .into_iter()
         .map(|s| s.to_string())

@@ -1,5 +1,7 @@
 use crate::commands::{filesystem, system};
 
+use super::misc;
+
 #[derive(Clone)]
 pub struct CommandHandler {
     history: Vec<String>,
@@ -48,6 +50,13 @@ impl CommandHandler {
             "uname" => filesystem::uname(args),
             "ln" => filesystem::ln(args),
             "ll" => filesystem::ls(&["-la"]),
+
+            "help" => misc::help(args),
+            "sudo" => misc::sudo(args),
+            "cowsay" => misc::cowsay(args),
+            "sl" => misc::sl(args),
+            "lolcat" => misc::lolcat(args),
+            "calc" => misc::calc(args),
 
             _ => format!("zsh: {}: command not found", cmd),
         };
