@@ -41,13 +41,12 @@ impl Terminal {
         ];
 
         for (message, status, color) in boot_messages {
-            self.add_line_with_boot_animation(message, status, color)
-                .await;
+            self.add_line_boot(message, status, color).await;
             self.sleep(50).await; // Reduced from 150ms
         }
 
         self.add_line("").await;
-        self.add_line_with_boot_animation("Starting objz Portfolio System", "[OK]", "green")
+        self.add_line_boot("Starting objz Portfolio System", "[OK]", "green")
             .await;
         self.sleep(200).await; // Reduced from 300ms
         self.add_line("").await;
@@ -66,7 +65,7 @@ impl Terminal {
             if line.starts_with(" ")
                 && (line.contains("/") || line.contains("\\") || line.contains("|"))
             {
-                self.add_line_with_typing_color(line, 30, "cyan").await; // Smooth typing with cyan
+                self.add_colored_line_typing(line, 30, "cyan").await; // Smooth typing with cyan
             } else {
                 self.add_line_instant(line).await;
             }
@@ -91,11 +90,11 @@ impl Terminal {
                 self.add_line("").await;
             } else if message.contains("login:") {
                 // type the entire login prompt + username on one line
-                self.add_line_with_typing(message, 50).await;
+                self.add_line_typing(message, 50).await;
             } else if message.contains("Password:") {
                 // type the prompt and dots on one line
                 let full = format!("{}••••••••", message);
-                self.add_line_with_typing(&full, 50).await;
+                self.add_line_typing(&full, 50).await;
             } else {
                 // all other static lines
                 self.add_line_instant_with_color(message, color).await;
@@ -114,18 +113,17 @@ impl Terminal {
         ];
 
         for (message, status, color) in init_messages {
-            self.add_line_with_boot_animation(message, status, color)
-                .await;
+            self.add_line_boot(message, status, color).await;
             self.sleep(60).await; // Reduced from 100ms
         }
     }
 
     async fn show_welcome_message(&self) {
         self.add_line("").await;
-        self.add_line_with_typing_color("Welcome to objz's Portfolio Terminal", 40, "green")
+        self.add_colored_line_typing("Welcome to objz's Portfolio Terminal", 40, "green")
             .await;
         self.sleep(300).await;
-        self.add_line_with_typing("Type 'help' to see available commands", 30)
+        self.add_line_typing("Type 'help' to see available commands", 30)
             .await;
         self.add_line("").await;
     }

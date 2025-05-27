@@ -23,16 +23,16 @@ impl Terminal {
         }
     }
 
-    pub async fn start_hacking_intro(&self) {
+    pub async fn start_intro(&self) {
         self.run_boot_sequence().await;
     }
 
-    pub async fn start_interactive_shell(&self) {
+    pub async fn start_shell(&self) {
         self.setup_input_system();
     }
 
     // Faster boot animation with improved spinner (removed unused color parameter)
-    pub async fn add_line_with_boot_animation(&self, task: &str, status: &str, _color: &str) {
+    pub async fn add_line_boot(&self, task: &str, status: &str, _color: &str) {
         let div = self.create_div_element("", Some("boot-line"));
         self.output_element.append_child(&div).unwrap();
         self.scroll_to_bottom();
@@ -63,7 +63,7 @@ impl Terminal {
     }
 
     // New method for smooth typing animation
-    pub async fn add_line_with_typing(&self, text: &str, typing_speed: u32) {
+    pub async fn add_line_typing(&self, text: &str, typing_speed: u32) {
         let div = self.create_div_element("", None);
         div.set_class_name("typing-line");
         self.output_element.append_child(&div).unwrap();
@@ -89,7 +89,7 @@ impl Terminal {
     }
 
     // Typing with color support
-    pub async fn add_line_with_typing_color(&self, text: &str, typing_speed: u32, color: &str) {
+    pub async fn add_colored_line_typing(&self, text: &str, typing_speed: u32, color: &str) {
         let div = self.create_div_element("", Some(color));
         div.set_class_name(&format!("typing-line {}", color));
         self.output_element.append_child(&div).unwrap();

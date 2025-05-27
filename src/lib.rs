@@ -22,8 +22,8 @@ pub fn main() {
     let terminal = Terminal::new(&document);
 
     spawn_local(async move {
-        terminal.start_hacking_intro().await;
-        terminal.start_interactive_shell().await;
+        terminal.start_intro().await;
+        terminal.start_shell().await;
     });
 }
 
