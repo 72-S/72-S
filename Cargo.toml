@@ -1,9 +1,8 @@
 [package]
-name = "web"
+name = "portfolio"
 version = "0.1.0"
 authors = ["objz <me@objz.dev>"]
-edition = "2024"
-repository = "https://github.com/objz/objz.git"
+edition = "2018"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -15,9 +14,6 @@ default = ["console_error_panic_hook"]
 wasm-bindgen = "0.2.84"
 
 console_error_panic_hook = { version = "0.1.7", optional = true }
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3.34"
 
 [profile.release]
 opt-level = "s"

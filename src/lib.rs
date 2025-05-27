@@ -7,5 +7,5 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn greet() {
-    alert("Hello, web!");
+    alert("Hello, test!");
 }
