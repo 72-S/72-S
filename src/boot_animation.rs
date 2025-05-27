@@ -87,16 +87,20 @@ impl Terminal {
 
         for (message, _status, color) in login_messages {
             if message.is_empty() {
+                // blank line
                 self.add_line("").await;
             } else if message.contains("login:") {
+                // type the entire login prompt + username on one line
+                self.add_line_with_typing(message, 50).await;
             } else if message.contains("Password:") {
-                self.add_line_with_typing("Password: ", 50).await;
-                self.sleep(300).await; // Pause for "typing" password
-                self.add_line_with_typing("••••••••", 100).await; // Show password dots
+                // type the prompt and dots on one line
+                let full = format!("{}••••••••", message);
+                self.add_line_with_typing(&full, 50).await;
             } else {
+                // all other static lines
                 self.add_line_instant_with_color(message, color).await;
             }
-            self.sleep(60).await; // Reduced from 100ms
+            self.sleep(60).await; // preserve your existing pacing
         }
     }
 

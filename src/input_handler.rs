@@ -150,8 +150,8 @@ impl Terminal {
                 let line_height = 22;
                 let min_height = line_height;
                 let max_height = line_height * 10;
-
                 let new_height = scroll_height.max(min_height).min(max_height);
+
                 textarea
                     .style()
                     .set_property("height", &format!("{}px", new_height))
@@ -161,8 +161,7 @@ impl Terminal {
                 let rows = (new_height / line_height).max(1);
                 textarea.set_attribute("rows", &rows.to_string()).unwrap();
 
-                // Ensure autoscroll after resize
-                ensure_autoscroll();
+                // ← removed ensure_autoscroll() here
             }
         }) as Box<dyn FnMut(_)>);
 
