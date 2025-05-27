@@ -28,7 +28,9 @@ Utilities:
   calc        - Calculator
   sudo        - Sudo access
 
-Type any command to get started!"#
+
+Type `ls`, then `cd projects` and `ls` again.  
+Run a project with `./project-name`.""#
         .to_string()
 }
 
@@ -99,14 +101,14 @@ pub fn calc(args: &[&str]) -> String {
 
     let expression = args.join(" ");
 
-    if let Some(result) = evaluate_simple_expression(&expression) {
+    if let Some(result) = evaluate(&expression) {
         format!("{} = {}", expression, result)
     } else {
         format!("Error: Cannot evaluate '{}'", expression)
     }
 }
 
-fn evaluate_simple_expression(expr: &str) -> Option<f64> {
+fn evaluate(expr: &str) -> Option<f64> {
     let parts: Vec<&str> = expr.split_whitespace().collect();
 
     if parts.len() == 3 {

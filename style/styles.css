@@ -122,16 +122,6 @@ body {
   white-space: pre;
 }
 
-.vim {
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 14px;
-  line-height: 1.2;
-  color: #00ff00;
-  white-space: pre;
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px;
-}
-
 .terminal-input-field {
   background: transparent;
   border: none;

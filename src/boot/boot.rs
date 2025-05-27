@@ -90,6 +90,7 @@ pub async fn login(term: &Terminal) {
         ("password: ", "", "white"),
         ("", "", ""),
         ("Last login: Mon May 27 13:59:36 2025", "", "white"),
+        ("Type 'help' for further information", "", "yellow"),
         ("", "", ""),
     ];
 
