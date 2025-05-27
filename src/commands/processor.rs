@@ -1,7 +1,6 @@
 use crate::ascii_art::AsciiArt;
 use crate::commands::{filesystem, misc, network, system};
 
-/// Central handler for all incoming shell commands.
 #[derive(Clone)]
 pub struct CommandHandler {
     history: Vec<String>,
@@ -9,7 +8,6 @@ pub struct CommandHandler {
 }
 
 impl CommandHandler {
-    /// Create a new handler with empty history.
     pub fn new() -> Self {
         Self {
             history: Vec::new(),
@@ -17,7 +15,6 @@ impl CommandHandler {
         }
     }
 
-    /// Parse and execute a single input line, returning the result.
     pub fn handle(&mut self, input: &str) -> String {
         let trimmed = input.trim();
         if trimmed.is_empty() {
@@ -44,7 +41,7 @@ impl CommandHandler {
             "ls" => filesystem::list(args),
             "cat" => filesystem::display(args),
 
-            // ASCII art (uses dedicated module internally)
+            // ASCII art
             "ascii" => self.ascii_art.get_ascii(args),
             "matrix" => self.ascii_art.get_matrix_effect(),
 
@@ -58,15 +55,13 @@ impl CommandHandler {
             "make" => misc::make(args),
             "hack" => misc::hack(args),
 
-            // History (needs access to self.history)
+            // History
             "history" => self.show_history(args),
 
-            // Fallback
             _ => format!("bash: {}: command not found", cmd),
         }
     }
 
-    /// Render the session’s command history.
     fn show_history(&self, _args: &[&str]) -> String {
         if self.history.is_empty() {
             "No commands in history yet.".to_string()

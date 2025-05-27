@@ -3,9 +3,9 @@ use wasm_bindgen_futures::spawn_local;
 use web_sys::window;
 
 mod ascii_art;
-mod boot_animation;
+mod boot;
 mod commands;
-mod input_handler;
+mod input;
 mod terminal;
 mod utils;
 
@@ -19,11 +19,10 @@ pub fn main() {
     let window = window().unwrap();
     let document = window.document().unwrap();
 
-    let terminal = Terminal::new(&document);
-
+    let term = Terminal::new(&document);
     spawn_local(async move {
-        terminal.start_intro().await;
-        terminal.start_shell().await;
+        term.start_intro().await;
+        term.start_shell().await;
     });
 }
 
@@ -35,5 +34,5 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn greet() {
-    log("Welcome to objz's Advanced Terminal Portfolio!");
+    log("Terminal loaded");
 }
