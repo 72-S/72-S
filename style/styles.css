@@ -6,7 +6,7 @@
 
 body {
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
-  color: #e6e6e6; /* Changed from green to light gray as default */
+  color: #e6e6e6;
   font-family:
     "JetBrains Mono", "Fira Code", "Source Code Pro", "Consolas", monospace;
   font-size: 14px;
@@ -17,14 +17,14 @@ body {
 
 #terminal {
   background: rgba(26, 26, 26, 0.95);
-  border: 1px solid #444; /* Slightly lighter border */
+  border: 1px solid #444;
   border-radius: 8px;
   width: 95vw;
   height: 95vh;
   margin: 2.5vh auto;
   box-shadow:
     0 0 30px rgba(100, 149, 237, 0.1),
-    /* Changed to blue glow */ 0 0 60px rgba(100, 149, 237, 0.05);
+    0 0 60px rgba(100, 149, 237, 0.05);
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(10px);
@@ -86,66 +86,137 @@ body {
   white-space: pre-wrap;
   word-wrap: break-word;
   margin-bottom: 8px;
-  color: #e6e6e6; /* Default text color */
+  color: #e6e6e6;
 }
 
 .prompt-line {
   display: flex;
   align-items: center;
+  margin-top: 8px;
 }
 
 .prompt {
-  color: #ff79c6; /* Pink prompt like many kitty themes */
-  margin-right: 4px;
-  text-shadow: 0 0 10px rgba(255, 121, 198, 0.5);
+  color: #8be9fd;
+  margin-right: 8px;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
   font-weight: bold;
+  transition: all 0.3s ease;
 }
 
-#terminal-input {
+/* Enhanced Input Container */
+.input-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.terminal-input-field {
   background: transparent;
   border: none;
   outline: none;
-  color: #f8f8f2; /* Slightly warm white for input */
+  color: #f8f8f2;
   font-family: inherit;
   font-size: inherit;
   flex: 1;
-  caret-color: #ff79c6; /* Pink cursor */
+  padding: 0;
+  margin: 0;
+  transition: all 0.2s ease;
+  caret-color: transparent; /* Hide default caret */
 }
 
-/* Enhanced Output styling with kitty-inspired colors */
+.terminal-input-field.typing {
+  text-shadow: 0 0 8px rgba(139, 233, 253, 0.4);
+  transform: scale(1.01);
+}
+
+/* Animated Cursor */
+.animated-cursor {
+  color: #8be9fd;
+  text-shadow: 0 0 15px rgba(139, 233, 253, 0.8);
+  animation: cursorBlink 1.2s infinite;
+  font-weight: bold;
+  margin-left: 2px;
+  transition: all 0.3s ease;
+}
+
+.animated-cursor.focused {
+  animation: cursorBlinkFast 0.8s infinite;
+  text-shadow: 0 0 20px rgba(139, 233, 253, 1);
+}
+
+@keyframes cursorBlink {
+  0%,
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50%,
+  95% {
+    opacity: 0.3;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cursorBlinkFast {
+  0%,
+  40% {
+    opacity: 1;
+    transform: scale(1.05);
+    text-shadow: 0 0 25px rgba(139, 233, 253, 1);
+  }
+  50%,
+  90% {
+    opacity: 0.4;
+    transform: scale(0.98);
+    text-shadow: 0 0 15px rgba(139, 233, 253, 0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.05);
+    text-shadow: 0 0 25px rgba(139, 233, 253, 1);
+  }
+}
+
+/* Enhanced Output styling */
 .command {
-  color: #8be9fd; /* Cyan for commands */
+  color: #8be9fd;
   text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
+  animation: fadeInUp 0.3s ease-out;
 }
 
 .error {
-  color: #ff5555; /* Bright red for errors */
+  color: #ff5555;
   text-shadow: 0 0 5px rgba(255, 85, 85, 0.3);
 }
 
 .success {
-  color: #50fa7b; /* Bright green for success */
+  color: #50fa7b;
   text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
 }
 
 .info {
-  color: #bd93f9; /* Purple for info */
+  color: #bd93f9;
   text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
 }
 
 .warning {
-  color: #ffb86c; /* Orange for warnings */
+  color: #ffb86c;
   text-shadow: 0 0 5px rgba(255, 184, 108, 0.3);
 }
 
 .ascii {
-  color: #f1fa8c; /* Yellow for ASCII art */
+  color: #f1fa8c;
   font-family: monospace;
   white-space: pre;
   text-shadow: 0 0 10px rgba(241, 250, 140, 0.2);
 }
 
-/* Additional color classes for more variety */
+/* Color classes */
 .cyan {
   color: #8be9fd;
   text-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
@@ -186,11 +257,16 @@ body {
   text-shadow: 0 0 10px rgba(98, 114, 164, 0.3);
 }
 
+.white {
+  color: #f8f8f2;
+  text-shadow: 0 0 5px rgba(248, 248, 242, 0.3);
+}
+
 /* Special styling for different content types */
 .header {
-  color: #ff79c6;
+  color: #8be9fd;
   font-weight: bold;
-  text-shadow: 0 0 10px rgba(255, 121, 198, 0.3);
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
 }
 
 .subheader {
@@ -228,7 +304,41 @@ body {
   text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
 }
 
-/* Animations */
+/* Boot animation styling */
+.boot-line {
+  color: #e6e6e6;
+  transition: all 0.3s ease;
+}
+
+.boot-line .status {
+  color: #50fa7b;
+  text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
+  animation: statusGlow 0.5s ease-in;
+}
+
+/* Typing animation styles */
+.typing-line {
+  position: relative;
+}
+
+.typing-cursor {
+  color: #8be9fd;
+  animation: cursorBlink 1s infinite;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.8);
+}
+
+@keyframes statusGlow {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Enhanced animations */
 @keyframes glow {
   0%,
   100% {
@@ -245,35 +355,19 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-@keyframes typing {
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
-}
-
-.typing {
-  overflow: hidden;
-  border-right: 2px solid #ff79c6; /* Pink cursor */
-  white-space: nowrap;
-  animation:
-    typing 2s steps(40, end),
-    blink-caret 0.75s step-end infinite;
-}
-
-@keyframes blink-caret {
-  from,
-  to {
-    border-color: transparent;
-  }
-  50% {
-    border-color: #ff79c6;
-  }
-}
-
+/* Smooth fade in for new elements */
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -285,22 +379,7 @@ body {
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.slide-in {
-  animation: slideIn 0.3s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 
 /* Matrix effect */
@@ -333,12 +412,23 @@ body {
 #terminal-body::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #333 0%, #555 100%);
   border-radius: 4px;
-  box-shadow: 0 0 5px rgba(189, 147, 249, 0.1); /* Purple glow */
+  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
+  transition: all 0.3s ease;
 }
 
 #terminal-body::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #444 0%, #666 100%);
-  box-shadow: 0 0 10px rgba(189, 147, 249, 0.2);
+  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+}
+
+/* Hover effects */
+.prompt-line:hover .prompt {
+  animation: glow 1s ease-in-out infinite;
+}
+
+.prompt-line:hover .animated-cursor {
+  text-shadow: 0 0 25px rgba(139, 233, 253, 1);
+  transform: scale(1.1);
 }
 
 /* Responsive design */
@@ -382,65 +472,4 @@ body {
   align-items: center;
   justify-content: center;
   font-family: "Courier New", monospace;
-}
-
-/* Hover effects */
-.prompt-line:hover .prompt {
-  animation: glow 1s ease-in-out infinite;
-}
-
-/* Focus effects */
-#terminal-input:focus + .cursor {
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
-
-/* Loading animations */
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-/* Glitch effect */
-@keyframes glitch {
-  0% {
-    transform: translate(0);
-  }
-  20% {
-    transform: translate(-2px, 2px);
-  }
-  40% {
-    transform: translate(-2px, -2px);
-  }
-  60% {
-    transform: translate(2px, 2px);
-  }
-  80% {
-    transform: translate(2px, -2px);
-  }
-  100% {
-    transform: translate(0);
-  }
-}
-
-.glitch {
-  animation: glitch 0.3s ease-in-out infinite;
 }
