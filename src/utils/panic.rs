@@ -3,7 +3,7 @@ use js_sys::Promise;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{window, Element};
 
-pub async fn show_system_panic(element: &Element) {
+pub async fn system_panic(element: &Element) {
     clear_output(element);
 
     let panic_lines = vec![
@@ -16,7 +16,7 @@ pub async fn show_system_panic(element: &Element) {
         "",
         "SYSTEM DESTROYED ☠️",
         "",
-        "Just kidding! This is a portfolio website, not your actual system.",
+        "Just kidding! This is a just website, not your actual system.",
         "Nice try though! 😉",
         "",
         "(Don't actually run 'sudo rm -rf /' on real systems!)",

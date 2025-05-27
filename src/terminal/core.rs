@@ -6,20 +6,33 @@ use web_sys::{window, Document, Element};
 pub struct Terminal {
     pub output_element: Element,
     pub command_processor: CommandHandler,
-    pub prompt: String,
+    pub base_prompt: String,
 }
 
 impl Terminal {
     pub fn new(document: &Document) -> Self {
         let output_element = document.get_element_by_id("terminal-output").unwrap();
         let command_processor = CommandHandler::new();
-        let prompt = "objz@portfolio:~$ ".to_string();
+        let base_prompt = "anonym@objz".to_string();
 
         Self {
             output_element,
             command_processor,
-            prompt,
+            base_prompt,
         }
+    }
+
+    pub fn get_current_prompt(&self) -> String {
+        let cwd = self.command_processor.get_current_directory();
+        let display_path = if cwd == "/home/objz" {
+            "~".to_string()
+        } else if cwd.starts_with("/home/objz/") {
+            format!("~{}", &cwd["/home/objz".len()..])
+        } else {
+            cwd
+        };
+
+        format!("{}:{}$ ", self.base_prompt, display_path)
     }
 
     pub async fn start_intro(&self) {

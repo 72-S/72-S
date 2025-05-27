@@ -1,82 +1,51 @@
-pub fn help(_args: &[&str]) -> String {
-    r#"Available commands:
+use crate::ascii_art::AsciiArt;
+use std::sync::OnceLock;
+use wasm_bindgen::prelude::*;
 
-NAVIGATION:
-  ls [path]           - List directory contents
-  cat <file>          - Display file contents
-  pwd                 - Show current directory
-  
-SYSTEM:
-  whoami              - Display current user
-  uptime              - Show system uptime
-  top                 - Display running processes
-  ps                  - Show process list
-  history             - Show command history
-  clear               - Clear the terminal
-  neofetch            - System information
-  date                - Show current date
-  
-PORTFOLIO:
-  ascii <topic>       - Display ASCII art
-  matrix              - Enter the matrix
-  
-NETWORK:
-  telnet <host>       - Connect to host
-  nc <host> <port>    - Netcat connection
-  
-EASTER EGGS:
-  sudo rm -rf /       - Don't try this at home!
-  make coffee         - Brew some coffee
-  hack                - Initiate hacking sequence
-  echo <text>         - Display text (try echo $USER)
-  
-Type any command to get started!"#
-        .to_string()
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = Date)]
+    fn now() -> f64;
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
 }
 
-pub fn whoami(_args: &[&str]) -> String {
-    r#"objz (Object-Oriented Developer)
-Software Engineer & System Architect
-Currently based in Germany
-
-Specializing in: Rust, Java, TypeScript, System Design
-Working on: CommandBridge, MCL, Portfolio projects
-
-"Code is like humor. When you have to explain it, it's bad." - Cory House"#
-        .to_string()
+static START_TIME: OnceLock<f64> = OnceLock::new();
+pub fn init() {
+    START_TIME.set(now()).ok();
 }
 
 pub fn clear(_args: &[&str]) -> String {
     "CLEAR_SCREEN".to_string()
 }
 
+pub fn echo(args: &[&str]) -> String {
+    if args.is_empty() {
+        String::new()
+    } else if args[0] == "$USER" {
+        AsciiArt::get_user()
+    } else {
+        args.join(" ")
+    }
+}
+
 pub fn date(_args: &[&str]) -> String {
-    "Mon May 27 13:28:47 UTC 2025".to_string()
+    let millis = now();
+    let date = js_sys::Date::new(&JsValue::from_f64(millis));
+    date.to_iso_string().into()
 }
 
 pub fn uptime(_args: &[&str]) -> String {
-    "Portfolio uptime: 17 days, 13:28, load average: 0.42, 0.13, 0.37".to_string()
-}
+    let start = *START_TIME.get().unwrap_or(&now());
+    let elapsed = now() - start;
 
-pub fn top(_args: &[&str]) -> String {
-    r#"  PID USER      %CPU  %MEM  COMMAND
- 1337 objz      12.3   4.2  ./portfolio_server
- 1338 objz       8.7   2.1  ./command_processor  
- 1339 objz       5.4   1.8  ./ascii_engine
- 1340 objz       3.2   0.9  ./animation_handler
- 1341 objz       0.5   0.3  ./project_showcase
- 1342 objz       0.1   0.1  ./coffee_maker"#
-        .to_string()
-}
+    let total_secs = (elapsed / 1000.0) as u64;
+    let hours = total_secs / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let seconds = total_secs % 60;
 
-pub fn ps(_args: &[&str]) -> String {
-    r#"  PID TTY          TIME CMD
- 1337 pts/0    00:00:42 portfolio
- 1338 pts/0    00:00:21 wasm-runtime
- 1339 pts/0    00:00:18 terminal-emu
- 1340 pts/0    00:00:12 animation-sys
- 1341 pts/0    00:00:05 ascii-render"#
-        .to_string()
+    format!("{:02}h {:02}m {:02}s", hours, minutes, seconds)
 }
 
 pub fn neofetch(_args: &[&str]) -> String {
@@ -84,15 +53,15 @@ pub fn neofetch(_args: &[&str]) -> String {
                   .o+`                   -----------------
                  `ooo/                   OS: Portfolio Linux x86_64
                 `+oooo:                  Host: GitHub Pages
-               `+oooooo:                 Kernel: WASM 6.6.6-portfolio
+               `+oooooo:                 Kernel: WASM 6.6.6
                -+oooooo+:                Uptime: 17 days, 13 hours, 28 mins
              `/:-:++oooo+:               Packages: 42 (rust), 13 (npm)
-            `/++++/+++++++:              Shell: portfolio-shell 3.0.0
+            `/++++/+++++++:              Shell: objz-shell 3.0.0
            `/++++++++++++++:             Resolution: 1920x1080
           `/+++ooooooooo++++/            WM: Terminal Emulator
-         ./ooosssso++osssssso+`          Theme: Matrix-Dark
+         ./ooosssso++osssssso+`          Theme: Dark
         .oossssso-````/ossssss+`         Icons: ASCII Art Pack
-       -osssssso.      :ssssssso.        Terminal: portfolio-term
+       -osssssso.      :ssssssso.        Terminal: objz-term
       :osssssss/        +sssso+++.
      /ossssssss/        +ssssooo/-       Memory: 521MiB / ∞GiB
    `/ossssso+/:-        -:/+osssso+-     

@@ -1,16 +1,12 @@
 use crate::terminal::Terminal;
 
-pub mod init;
-pub mod login;
-pub mod logo;
-pub mod system;
+pub mod boot;
 
 impl Terminal {
     pub async fn run_boot_sequence(&self) {
         self.clear_output();
-        system::run_system_boot(self).await;
-        logo::show_logo(self).await;
-        login::run_login_sequence(self).await;
-        init::run_boot_init(self).await;
+        boot::boot(self).await;
+        boot::logo(self).await;
+        boot::login(self).await;
     }
 }

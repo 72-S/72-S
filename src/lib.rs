@@ -1,3 +1,4 @@
+use commands::system;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::window;
@@ -15,6 +16,8 @@ use terminal::Terminal;
 pub fn main() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
+
+    system::init();
 
     let window = window().unwrap();
     let document = window.document().unwrap();

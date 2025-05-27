@@ -3,7 +3,7 @@ use crate::input::history::CommandHistory;
 use crate::terminal::Terminal;
 use crate::utils::{
     dom::{append_line, clear_output},
-    panic::show_system_panic,
+    panic::system_panic,
 };
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
@@ -28,7 +28,7 @@ impl Terminal {
 
         let label = doc.create_element("span").unwrap();
         label.set_class_name("prompt");
-        label.set_text_content(Some(&self.prompt));
+        label.set_text_content(Some(&self.get_current_prompt()));
 
         let input_wrapper = doc.create_element("div").unwrap();
         input_wrapper.set_class_name("input-container");
@@ -128,7 +128,7 @@ impl Terminal {
             h
         };
         let mut processor = self.command_processor.clone();
-        let prompt = self.prompt.clone();
+        let base_prompt = self.base_prompt.clone();
         let clone_in = input.clone();
 
         let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
@@ -142,11 +142,25 @@ impl Terminal {
                 clone_in.style().set_property("height", "auto").unwrap();
                 clone_in.set_attribute("rows", "1").unwrap();
 
-                let line = format!("{}{}", prompt, val);
+                // Get current prompt before executing command
+                let current_prompt = {
+                    let cwd = processor.get_current_directory();
+                    let display_path = if cwd == "/home/objz" {
+                        "~".to_string()
+                    } else if cwd.starts_with("/home/objz/") {
+                        format!("~{}", &cwd["/home/objz".len()..])
+                    } else {
+                        cwd
+                    };
+                    format!("{}:{}$ ", base_prompt, display_path)
+                };
+
+                let line = format!("{}{}", current_prompt, val);
                 append_line(&out_el, &line, Some("command"));
                 ensure_autoscroll();
 
-                let result = processor.handle(&val);
+                let (result, directory_changed) = processor.handle(&val);
+
                 match result.as_str() {
                     "CLEAR_SCREEN" => {
                         clear_output(&out_el);
@@ -154,7 +168,7 @@ impl Terminal {
                     "SYSTEM_PANIC" => {
                         let out_clone = out_el.clone();
                         spawn_local(async move {
-                            show_system_panic(&out_clone).await;
+                            system_panic(&out_clone).await;
                         });
                     }
                     _ => {
@@ -162,6 +176,25 @@ impl Terminal {
                             append_line(&out_el, line, None);
                             ensure_autoscroll();
                         }
+                    }
+                }
+
+                // UPDATE THE PROMPT MANUALLY (instead of using update_prompt())
+                if directory_changed {
+                    let doc = window().unwrap().document().unwrap();
+                    if let Some(prompt_element) =
+                        doc.query_selector(".prompt-line .prompt").unwrap()
+                    {
+                        let new_cwd = processor.get_current_directory();
+                        let new_display_path = if new_cwd == "/home/objz" {
+                            "~".to_string()
+                        } else if new_cwd.starts_with("/home/objz/") {
+                            format!("~{}", &new_cwd["/home/objz".len()..])
+                        } else {
+                            new_cwd
+                        };
+                        let new_prompt = format!("{}:{}$ ", base_prompt, new_display_path);
+                        prompt_element.set_text_content(Some(&new_prompt));
                     }
                 }
             }
@@ -183,7 +216,6 @@ impl Terminal {
             .unwrap();
         handler.forget();
     }
-
     fn show_prompt(&self) {
         let doc = window().unwrap().document().unwrap();
         let input = doc

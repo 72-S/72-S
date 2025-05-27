@@ -1,3 +1,4 @@
+use crate::input::autoscroll::ensure_autoscroll;
 use crate::terminal::Terminal;
 use crate::utils::{dom::append_line, scroll::scroll_to_bottom};
 
@@ -22,6 +23,7 @@ impl Terminal {
         };
         div.set_inner_html(&final_html);
         scroll_to_bottom(&self.output_element);
+        ensure_autoscroll();
     }
 
     pub async fn add_line_typing(&self, text: &str, speed: u32) {
@@ -42,6 +44,7 @@ impl Terminal {
             scroll_to_bottom(&self.output_element);
             self.sleep(speed as i32).await;
         }
+        ensure_autoscroll();
     }
 
     pub async fn add_colored_line_typing(&self, text: &str, speed: u32, color: &str) {
@@ -62,6 +65,7 @@ impl Terminal {
             scroll_to_bottom(&self.output_element);
             self.sleep(speed as i32).await;
         }
+        ensure_autoscroll();
     }
 
     pub async fn add_line(&self, text: &str) {

@@ -1,11 +1,11 @@
-pub fn get_user_ascii() -> String {
+pub fn user() -> String {
     r#"
    ___  ___    _ ____
   / _ \| _ )_ | |_  /
  | (_) | _ \ || |/ / 
   \___/|___/\__//___|
 
-  [ objz@portfolio ]
+  [ me@objz.dev ]
 
   "Code is poetry in motion"
     "#

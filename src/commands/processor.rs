@@ -1,24 +1,25 @@
-use crate::ascii_art::AsciiArt;
-use crate::commands::{filesystem, misc, network, system};
+use crate::commands::{filesystem, system};
 
 #[derive(Clone)]
 pub struct CommandHandler {
     history: Vec<String>,
-    ascii_art: AsciiArt,
 }
 
 impl CommandHandler {
     pub fn new() -> Self {
         Self {
             history: Vec::new(),
-            ascii_art: AsciiArt::new(),
         }
     }
 
-    pub fn handle(&mut self, input: &str) -> String {
+    pub fn get_current_directory(&self) -> String {
+        filesystem::pwd(&[])
+    }
+
+    pub fn handle(&mut self, input: &str) -> (String, bool) {
         let trimmed = input.trim();
         if trimmed.is_empty() {
-            return String::new();
+            return (String::new(), false);
         }
 
         self.history.push(trimmed.to_string());
@@ -26,40 +27,31 @@ impl CommandHandler {
         let cmd = parts[0];
         let args = &parts[1..];
 
-        match cmd {
-            // System commands
-            "help" => system::help(args),
-            "whoami" => system::whoami(args),
+        let directory_changed = cmd == "cd";
+
+        let output = match cmd {
+            "clear" => system::clear(args),
+            "history" => self.show_history(args),
+            "echo" => system::echo(args),
             "date" => system::date(args),
             "uptime" => system::uptime(args),
-            "top" => system::top(args),
-            "ps" => system::ps(args),
             "neofetch" => system::neofetch(args),
-            "clear" => system::clear(args),
 
-            // Filesystem commands
-            "ls" => filesystem::list(args),
-            "cat" => filesystem::display(args),
+            "ls" => filesystem::ls(args),
+            "cd" => filesystem::cd(args),
+            "cat" => filesystem::cat(args),
+            "pwd" => filesystem::pwd(args),
+            "tree" => filesystem::tree(args),
+            "mkdir" => filesystem::mkdir(args),
+            "touch" => filesystem::touch(args),
+            "rm" => filesystem::rm(args),
+            "uname" => filesystem::uname(args),
+            "ln" => filesystem::ln(args),
 
-            // ASCII art
-            "ascii" => self.ascii_art.get_ascii(args),
-            "matrix" => self.ascii_art.get_matrix_effect(),
+            _ => format!("zsh: {}: command not found", cmd),
+        };
 
-            // Network commands
-            "telnet" => network::telnet(args),
-            "nc" | "netcat" => network::netcat(args),
-
-            // Miscellaneous utilities
-            "echo" => misc::echo(args),
-            "sudo" => misc::sudo(args),
-            "make" => misc::make(args),
-            "hack" => misc::hack(args),
-
-            // History
-            "history" => self.show_history(args),
-
-            _ => format!("bash: {}: command not found", cmd),
-        }
+        (output, directory_changed)
     }
 
     fn show_history(&self, _args: &[&str]) -> String {
