@@ -1,6 +1,5 @@
-import init, { greet } from "../pkg/portfolio.js";
+import init from "../pkg/portfolio.js";
 
 init().then(() => {
-  console.log("WASM geladen.");
-  greet();
+  console.log("Portfolio loaded successfully!");
 });

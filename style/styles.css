@@ -1,0 +1,375 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  color: #00ff00;
+  font-family:
+    "JetBrains Mono", "Fira Code", "Source Code Pro", "Consolas", monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#terminal {
+  background: rgba(26, 26, 26, 0.95);
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 95vw;
+  height: 95vh;
+  margin: 2.5vh auto;
+  box-shadow:
+    0 0 30px rgba(0, 255, 0, 0.1),
+    0 0 60px rgba(0, 255, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(10px);
+}
+
+#terminal-header {
+  background: linear-gradient(135deg, #2a2a2a 0%, #333 100%);
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 8px 8px 0 0;
+}
+
+.window-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.control {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.control:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.close {
+  background: linear-gradient(135deg, #ff5f56 0%, #ff3030 100%);
+}
+.minimize {
+  background: linear-gradient(135deg, #ffbd2e 0%, #ffa500 100%);
+}
+.maximize {
+  background: linear-gradient(135deg, #27ca3f 0%, #20b030 100%);
+}
+
+.terminal-title {
+  color: #888;
+  font-size: 12px;
+  text-shadow: 0 0 5px rgba(136, 136, 136, 0.5);
+}
+
+#terminal-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #0a0a0a;
+  border-radius: 0 0 8px 8px;
+}
+
+#terminal-output {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-bottom: 8px;
+}
+
+.prompt-line {
+  display: flex;
+  align-items: center;
+}
+
+.prompt {
+  color: #00ff00;
+  margin-right: 4px;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+#terminal-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: inherit;
+  flex: 1;
+  caret-color: #00ff00;
+}
+
+/* Output styling */
+.command {
+  color: #ffffff;
+}
+
+.error {
+  color: #ff6b6b;
+  text-shadow: 0 0 5px rgba(255, 107, 107, 0.3);
+}
+
+.success {
+  color: #51cf66;
+  text-shadow: 0 0 5px rgba(81, 207, 102, 0.3);
+}
+
+.info {
+  color: #74c0fc;
+  text-shadow: 0 0 5px rgba(116, 192, 252, 0.3);
+}
+
+.warning {
+  color: #ffd43b;
+  text-shadow: 0 0 5px rgba(255, 212, 59, 0.3);
+}
+
+.ascii {
+  color: #ffd43b;
+  font-family: monospace;
+  white-space: pre;
+  text-shadow: 0 0 10px rgba(255, 212, 59, 0.2);
+}
+
+.cyan {
+  color: #22d3ee;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+}
+
+.green {
+  color: #10b981;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.yellow {
+  color: #f59e0b;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+/* Animations */
+@keyframes glow {
+  0%,
+  100% {
+    text-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    text-shadow:
+      0 0 20px currentColor,
+      0 0 30px currentColor;
+  }
+}
+
+.glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.typing {
+  overflow: hidden;
+  border-right: 2px solid #00ff00;
+  white-space: nowrap;
+  animation:
+    typing 2s steps(40, end),
+    blink-caret 0.75s step-end infinite;
+}
+
+@keyframes blink-caret {
+  from,
+  to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #00ff00;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Matrix effect */
+@keyframes matrix {
+  0% {
+    color: #00ff00;
+  }
+  50% {
+    color: #008800;
+  }
+  100% {
+    color: #00ff00;
+  }
+}
+
+.matrix {
+  animation: matrix 2s ease-in-out infinite;
+}
+
+/* Scrollbar styling */
+#terminal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+#terminal-body::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+#terminal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #333 0%, #555 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 5px rgba(0, 255, 0, 0.1);
+}
+
+#terminal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #444 0%, #666 100%);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  body {
+    font-size: 12px;
+  }
+
+  #terminal {
+    width: 98vw;
+    height: 98vh;
+    margin: 1vh auto;
+  }
+
+  #terminal-body {
+    padding: 12px;
+  }
+
+  .window-controls {
+    gap: 6px;
+  }
+
+  .control {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Special effects */
+.panic-screen {
+  background: #000080;
+  color: #ffffff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: "Courier New", monospace;
+}
+
+/* Hover effects */
+.prompt-line:hover .prompt {
+  animation: glow 1s ease-in-out infinite;
+}
+
+/* Focus effects */
+#terminal-input:focus + .cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Loading animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Glitch effect */
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+.glitch {
+  animation: glitch 0.3s ease-in-out infinite;
+}

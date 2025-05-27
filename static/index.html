@@ -2,9 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>OBJZ</title>
+    <title>objz@portfolio:~$ _</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../style/styles.css" />
   </head>
   <body>
+    <div id="terminal">
+      <div id="terminal-header">
+        <div class="window-controls">
+          <span class="control close"></span>
+          <span class="control minimize"></span>
+          <span class="control maximize"></span>
+        </div>
+        <div class="terminal-title">objz@portfolio:~</div>
+      </div>
+      <div id="terminal-body">
+        <div id="terminal-output"></div>
+        <div class="prompt-line">
+          <span class="prompt">objz@portfolio:~$ </span>
+          <input
+            type="text"
+            id="terminal-input"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+      </div>
+    </div>
     <script type="module" src="../js/index.js"></script>
   </body>
 </html>
