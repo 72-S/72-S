@@ -1,4 +1,4 @@
-pub fn sudo(args: &[&str]) -> String {
+pub fn _sudo(args: &[&str]) -> String {
     if args.len() >= 3 && args[0] == "rm" && args[1] == "-rf" && args[2] == "/" {
         "SYSTEM_PANIC".to_string()
     } else {
@@ -6,7 +6,7 @@ pub fn sudo(args: &[&str]) -> String {
     }
 }
 
-pub fn help(_args: &[&str]) -> String {
+pub fn _help(_args: &[&str]) -> String {
     r#"Available commands:
 
 

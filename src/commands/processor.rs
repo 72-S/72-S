@@ -47,6 +47,7 @@ impl CommandHandler {
             "rm" => filesystem::rm(args),
             "uname" => filesystem::uname(args),
             "ln" => filesystem::ln(args),
+            "ll" => filesystem::ls(&["-la"]),
 
             _ => format!("zsh: {}: command not found", cmd),
         };

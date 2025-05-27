@@ -7,23 +7,44 @@ pub enum Node {
     File {
         content: String,
         permissions: u16,
+        owner: String,
+        protected: bool,
     },
     Directory {
         children: HashMap<String, Node>,
         permissions: u16,
+        owner: String,
+        protected: bool,
     },
     Symlink {
         target: String,
+        owner: String,
     },
 }
 
 impl Node {
-    fn is_directory(&self) -> bool {
+    fn _is_directory(&self) -> bool {
         matches!(self, Node::Directory { .. })
     }
 
-    fn is_file(&self) -> bool {
+    fn _is_file(&self) -> bool {
         matches!(self, Node::File { .. })
+    }
+
+    fn is_protected(&self) -> bool {
+        match self {
+            Node::File { protected, .. } => *protected,
+            Node::Directory { protected, .. } => *protected,
+            Node::Symlink { .. } => false,
+        }
+    }
+
+    fn get_owner(&self) -> &str {
+        match self {
+            Node::File { owner, .. } => owner,
+            Node::Directory { owner, .. } => owner,
+            Node::Symlink { owner, .. } => owner,
+        }
     }
 }
 
@@ -32,25 +53,35 @@ lazy_static! {
         use Node::*;
         Directory {
             permissions: 0o755,
+            owner: "root".to_string(),
+            protected: true,
             children: HashMap::from([
                 (
                     "home".into(),
                     Directory {
                         permissions: 0o755,
+                        owner: "root".to_string(),
+                        protected: false,
                         children: HashMap::from([(
                             "objz".into(),
                             Directory {
                                 permissions: 0o755,
+                                owner: "objz".to_string(),
+                                protected: false,
                                 children: HashMap::from([
                                     (
                                         "projects".into(),
                                         Directory {
                                             permissions: 0o755,
+                                            owner: "objz".to_string(),
+                                            protected: true, // Protected!
                                             children: HashMap::from([(
                                                 "readme.md".into(),
                                                 File {
                                                     content: "# Projects\n\nThis is the projects folder.\nContains all my development work.".into(),
                                                     permissions: 0o644,
+                                                    owner: "objz".to_string(),
+                                                    protected: true,
                                                 }
                                             )]),
                                         }
@@ -60,13 +91,17 @@ lazy_static! {
                                         File {
                                             content: "I'm objz – a developer from Bavaria.\nI love Rust and WebAssembly!".into(),
                                             permissions: 0o644,
+                                            owner: "objz".to_string(),
+                                            protected: true, // Protected!
                                         }
                                     ),
                                     (
                                         "contact.txt".into(),
                                         File {
-                                            content: "Email: me@objz.dev\nGitHub: @72-S\nLocation: Bavaria, Germany".into(),
+                                            content: "Email: me@objz.dev\nGitHub: @objz\nLocation: Bavaria, Germany".into(),
                                             permissions: 0o644,
+                                            owner: "objz".to_string(),
+                                            protected: true, // Protected!
                                         }
                                     ),
                                     (
@@ -74,6 +109,8 @@ lazy_static! {
                                         File {
                                             content: "# ~/.bashrc\nexport PS1='\\u@\\h:\\w\\$ '\nalias ll='ls -la'".into(),
                                             permissions: 0o644,
+                                            owner: "objz".to_string(),
+                                            protected: false,
                                         }
                                     ),
                                 ]),
@@ -85,11 +122,15 @@ lazy_static! {
                     "etc".into(),
                     Directory {
                         permissions: 0o755,
+                        owner: "root".to_string(),
+                        protected: true, // Protected!
                         children: HashMap::from([(
                             "hostname".into(),
                             File {
                                 content: "wasm-host".into(),
                                 permissions: 0o644,
+                                owner: "root".to_string(),
+                                protected: true,
                             }
                         )]),
                     }
@@ -98,6 +139,8 @@ lazy_static! {
                     "tmp".into(),
                     Directory {
                         permissions: 0o1777,
+                        owner: "root".to_string(),
+                        protected: false,
                         children: HashMap::new(),
                     }
                 ),
@@ -105,10 +148,14 @@ lazy_static! {
                     "usr".into(),
                     Directory {
                         permissions: 0o755,
+                        owner: "root".to_string(),
+                        protected: true,
                         children: HashMap::from([(
                             "bin".into(),
                             Directory {
                                 permissions: 0o755,
+                                owner: "root".to_string(),
+                                protected: true,
                                 children: HashMap::new(),
                             }
                         )]),
@@ -117,13 +164,12 @@ lazy_static! {
             ])
         }
     });
-    static ref CURRENT_PATH: Mutex<Vec<String>> =
-        Mutex::new(vec!["home".to_string(), "objz".to_string()]);
+    static ref CURRENT_PATH: Mutex<Vec<String>> = Mutex::new(vec!["home".to_string(), "objz".to_string()]);
+    static ref CURRENT_USER: String = "anonym".to_string();
 }
 
 fn normalize_path(path: &str, current: &[String]) -> Vec<String> {
     if path.starts_with('/') {
-        // Absolute path
         let mut result = Vec::new();
         for part in path.split('/').filter(|s| !s.is_empty()) {
             match part {
@@ -136,7 +182,6 @@ fn normalize_path(path: &str, current: &[String]) -> Vec<String> {
         }
         result
     } else {
-        // Relative path
         let mut result = current.to_vec();
         for part in path.split('/').filter(|s| !s.is_empty()) {
             match part {
@@ -183,7 +228,6 @@ pub fn ls(args: &[&str]) -> String {
     let mut long_format = false;
     let mut target_path = None;
 
-    // Parse arguments
     for arg in args {
         if arg.starts_with('-') {
             for c in arg.chars().skip(1) {
@@ -233,11 +277,7 @@ pub fn ls(args: &[&str]) -> String {
 
                     output.push_str(&format!(
                         "{}{:o} 1 objz objz {:>8} {} {}\n",
-                        file_type,
-                        permissions,
-                        size,
-                        "Jan  1 12:00", // Simplified timestamp
-                        name
+                        file_type, permissions, size, "Jan  1 12:00", name
                     ));
                 }
                 output
@@ -350,6 +390,7 @@ pub fn mkdir(args: &[&str]) -> String {
 
     let mut filesystem = FILESYSTEM.lock().unwrap();
     let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
 
     for &dirname in args {
         let dir_path = normalize_path(dirname, &current_path);
@@ -385,6 +426,8 @@ pub fn mkdir(args: &[&str]) -> String {
             dir_name.clone(),
             Node::Directory {
                 permissions: 0o755,
+                owner: current_user.clone(),
+                protected: false,
                 children: HashMap::new(),
             },
         );
@@ -400,12 +443,13 @@ pub fn touch(args: &[&str]) -> String {
 
     let mut filesystem = FILESYSTEM.lock().unwrap();
     let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
 
     for &filename in args {
         let file_path = normalize_path(filename, &current_path);
 
         if file_path.is_empty() {
-            continue; // Skip root
+            continue;
         }
 
         let parent_path = &file_path[..file_path.len() - 1];
@@ -428,10 +472,11 @@ pub fn touch(args: &[&str]) -> String {
                 Node::File {
                     content: String::new(),
                     permissions: 0o644,
+                    owner: current_user.clone(),
+                    protected: false,
                 },
             );
         }
-        // If file exists, we would update timestamp in a real filesystem
     }
 
     String::new()
@@ -444,12 +489,12 @@ pub fn rm(args: &[&str]) -> String {
 
     let mut filesystem = FILESYSTEM.lock().unwrap();
     let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
 
     let mut recursive = false;
     let mut force = false;
     let mut files = Vec::new();
 
-    // Parse arguments
     for &arg in args {
         if arg.starts_with('-') {
             for c in arg.chars().skip(1) {
@@ -469,7 +514,7 @@ pub fn rm(args: &[&str]) -> String {
 
         if file_path.is_empty() {
             if !force {
-                return "rm: cannot remove '/': Is a directory".into();
+                return "rm: cannot remove '/': Permission denied".into();
             }
             continue;
         }
@@ -497,20 +542,35 @@ pub fn rm(args: &[&str]) -> String {
         };
 
         match parent.get(file_name) {
-            Some(Node::Directory { .. }) => {
-                if !recursive {
-                    if !force {
-                        return format!("rm: cannot remove '{}': Is a directory", filename);
-                    }
-                    continue;
+            Some(node) => {
+                if node.is_protected() {
+                    return format!(
+                        "rm: cannot remove '{}': Operation not permitted (protected system file)",
+                        filename
+                    );
                 }
-                parent.remove(file_name);
-            }
-            Some(Node::File { .. }) => {
-                parent.remove(file_name);
-            }
-            Some(Node::Symlink { .. }) => {
-                parent.remove(file_name);
+
+                if node.get_owner() != current_user && current_user != "root" {
+                    return format!(
+                        "rm: cannot remove '{}': Permission denied (not owner)",
+                        filename
+                    );
+                }
+
+                match node {
+                    Node::Directory { .. } => {
+                        if !recursive {
+                            if !force {
+                                return format!("rm: cannot remove '{}': Is a directory", filename);
+                            }
+                            continue;
+                        }
+                        parent.remove(file_name);
+                    }
+                    Node::File { .. } | Node::Symlink { .. } => {
+                        parent.remove(file_name);
+                    }
+                }
             }
             None => {
                 if !force {
@@ -558,7 +618,7 @@ pub fn tree(args: &[&str]) -> String {
 
                 let display_name = match child {
                     Node::Directory { .. } => format!("{}/", name),
-                    Node::File { .. } => name.to_string(), // Fixed: changed from name.clone() to name.to_string()
+                    Node::File { .. } => name.to_string(),
                     Node::Symlink { target, .. } => format!("{} -> {}", name, target),
                 };
 
@@ -590,6 +650,7 @@ pub fn ln(args: &[&str]) -> String {
 
     let mut filesystem = FILESYSTEM.lock().unwrap();
     let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
 
     let (target, link_name) = if args[0] == "-s" {
         if args.len() < 3 {
@@ -628,6 +689,7 @@ pub fn ln(args: &[&str]) -> String {
         file_name.clone(),
         Node::Symlink {
             target: target.to_string(),
+            owner: current_user.clone(),
         },
     );
 
