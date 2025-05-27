@@ -39,11 +39,12 @@ impl AsciiArt {
 
     pub fn get_user_ascii() -> String {
         r#"
-  ___  ___ ___  ____
- / _ \| _ ) _ \|_  /
-| (_) | _ \   / / / 
- \___/|___/_|_\/___|
-                    
+   ___  ___    _ ____
+  / _ \| _ )_ | |_  /
+ | (_) | _ \ || |/ / 
+  \___/|___/\__//___|
+                     
+
     [ objz@portfolio ]
     
     "Code is poetry in motion"

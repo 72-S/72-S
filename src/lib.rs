@@ -4,24 +4,24 @@ use web_sys::window;
 
 mod animator;
 mod ascii_art;
+mod boot_animation;
 mod commands;
+mod input_handler;
 mod terminal;
+mod utils;
 
 use terminal::Terminal;
 
 #[wasm_bindgen(start)]
 pub fn main() {
-    // Use set_once() from the console_error_panic_hook crate
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 
     let window = window().unwrap();
     let document = window.document().unwrap();
 
-    // Initialize terminal
     let terminal = Terminal::new(&document);
 
-    // Start the hacking intro animation
     spawn_local(async move {
         terminal.start_hacking_intro().await;
         terminal.start_interactive_shell().await;
