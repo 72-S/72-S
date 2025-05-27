@@ -1,5 +1,5 @@
 use crate::terminal::Terminal;
-use crate::utils::{append_line, clear_output, scroll_to_bottom, show_system_panic};
+use crate::utils::{append_line, clear_output, show_system_panic};
 use std::collections::VecDeque;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
