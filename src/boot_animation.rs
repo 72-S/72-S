@@ -89,10 +89,6 @@ impl Terminal {
             if message.is_empty() {
                 self.add_line("").await;
             } else if message.contains("login:") {
-                // Use typing animation for login prompt
-                self.add_line_with_typing("login: ", 50).await;
-                self.sleep(200).await;
-                self.add_line_with_typing_color("objz", 80, "cyan").await;
             } else if message.contains("Password:") {
                 self.add_line_with_typing("Password: ", 50).await;
                 self.sleep(300).await; // Pause for "typing" password

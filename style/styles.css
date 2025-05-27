@@ -80,6 +80,7 @@ body {
   overflow-y: auto;
   background: #0a0a0a;
   border-radius: 0 0 8px 8px;
+  scroll-behavior: smooth;
 }
 
 #terminal-output {
@@ -91,8 +92,9 @@ body {
 
 .prompt-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .prompt {
@@ -101,14 +103,17 @@ body {
   text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
   font-weight: bold;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 /* Enhanced Input Container */
 .input-container {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex: 1;
   position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .terminal-input-field {
@@ -121,92 +126,73 @@ body {
   flex: 1;
   padding: 0;
   margin: 0;
-  transition: all 0.2s ease;
-  caret-color: transparent; /* Hide default caret */
+  transition: text-shadow 0.15s ease;
+  caret-color: #ffffff;
+  min-width: 0;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  resize: none;
+  line-height: 1.4;
+  height: auto;
+  min-height: 1.4em;
+  max-height: 10em;
+  overflow-y: auto;
 }
 
+/* Typing animation - enhanced */
 .terminal-input-field.typing {
-  text-shadow: 0 0 8px rgba(139, 233, 253, 0.4);
-  transform: scale(1.01);
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.6);
+  transition: text-shadow 0.1s ease-out;
 }
 
-/* Animated Cursor */
-.animated-cursor {
-  color: #8be9fd;
-  text-shadow: 0 0 15px rgba(139, 233, 253, 0.8);
-  animation: cursorBlink 1.2s infinite;
-  font-weight: bold;
-  margin-left: 2px;
-  transition: all 0.3s ease;
+/* White blinking caret */
+.terminal-input-field:focus {
+  caret-color: #ffffff;
+  animation: caretBlink 1s infinite;
 }
 
-.animated-cursor.focused {
-  animation: cursorBlinkFast 0.8s infinite;
-  text-shadow: 0 0 20px rgba(139, 233, 253, 1);
-}
-
-@keyframes cursorBlink {
+/* White caret blink animation */
+@keyframes caretBlink {
   0%,
-  45% {
-    opacity: 1;
-    transform: scale(1);
+  50% {
+    caret-color: #ffffff;
   }
-  50%,
-  95% {
-    opacity: 0.3;
-    transform: scale(0.95);
-  }
+  51%,
   100% {
-    opacity: 1;
-    transform: scale(1);
+    caret-color: transparent;
   }
 }
 
-@keyframes cursorBlinkFast {
-  0%,
-  40% {
-    opacity: 1;
-    transform: scale(1.05);
-    text-shadow: 0 0 25px rgba(139, 233, 253, 1);
-  }
-  50%,
-  90% {
-    opacity: 0.4;
-    transform: scale(0.98);
-    text-shadow: 0 0 15px rgba(139, 233, 253, 0.6);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1.05);
-    text-shadow: 0 0 25px rgba(139, 233, 253, 1);
-  }
-}
-
-/* Enhanced Output styling */
+/* Enhanced Output styling with improved animations */
 .command {
   color: #8be9fd;
   text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
-  animation: fadeInUp 0.3s ease-out;
+  animation: fadeInLeft 0.2s ease-out;
 }
 
 .error {
   color: #ff5555;
   text-shadow: 0 0 5px rgba(255, 85, 85, 0.3);
+  animation: fadeInLeft 0.15s ease-out;
 }
 
 .success {
   color: #50fa7b;
   text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
+  animation: fadeInLeft 0.15s ease-out;
 }
 
 .info {
   color: #bd93f9;
   text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
+  animation: fadeInLeft 0.1s ease-out;
 }
 
 .warning {
   color: #ffb86c;
   text-shadow: 0 0 5px rgba(255, 184, 108, 0.3);
+  animation: fadeInLeft 0.15s ease-out;
 }
 
 .ascii {
@@ -214,6 +200,7 @@ body {
   font-family: monospace;
   white-space: pre;
   text-shadow: 0 0 10px rgba(241, 250, 140, 0.2);
+  animation: fadeInLeft 0.1s ease-out;
 }
 
 /* Color classes */
@@ -304,6 +291,16 @@ body {
   text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
 }
 
+.file {
+  color: #f8f8f2;
+  animation: fadeInLeft 0.08s ease-out;
+}
+
+.directory {
+  color: #50fa7b;
+  animation: fadeInLeft 0.08s ease-out;
+}
+
 /* Boot animation styling */
 .boot-line {
   color: #e6e6e6;
@@ -327,6 +324,34 @@ body {
   text-shadow: 0 0 10px rgba(139, 233, 253, 0.8);
 }
 
+/* Login line styling - for same-line username/password animation */
+.login-line {
+  display: inline;
+  white-space: nowrap;
+}
+
+.login-prompt {
+  color: #f8f8f2;
+  display: inline;
+}
+
+.login-input {
+  color: #8be9fd;
+  display: inline;
+  animation: typeWriter 0.5s ease-out;
+}
+
+@keyframes typeWriter {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: auto;
+    opacity: 1;
+  }
+}
+
 @keyframes statusGlow {
   0% {
     opacity: 0;
@@ -338,7 +363,7 @@ body {
   }
 }
 
-/* Enhanced animations */
+/* Enhanced animations - simpler and faster */
 @keyframes glow {
   0%,
   100% {
@@ -355,8 +380,28 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-/* Smooth fade in for new elements */
+/* Faster, simpler fade in animations */
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(5px);
@@ -367,19 +412,8 @@ body {
   }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 /* Matrix effect */
@@ -397,6 +431,18 @@ body {
 
 .matrix {
   animation: matrix 2s ease-in-out infinite;
+}
+
+/* Cursor blink animation for real caret */
+@keyframes cursorBlink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Scrollbar styling */
@@ -426,11 +472,6 @@ body {
   animation: glow 1s ease-in-out infinite;
 }
 
-.prompt-line:hover .animated-cursor {
-  text-shadow: 0 0 25px rgba(139, 233, 253, 1);
-  transform: scale(1.1);
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   body {
@@ -454,6 +495,16 @@ body {
   .control {
     width: 10px;
     height: 10px;
+  }
+
+  .prompt-line {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .input-container {
+    width: 100%;
+    margin-top: 4px;
   }
 }
 
