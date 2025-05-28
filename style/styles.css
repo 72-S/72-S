@@ -88,6 +88,8 @@ body {
   box-shadow: none;
   display: flex;
   flex-direction: column;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  pointer-events: none;
 }
 
 /* When rendering as a texture, keep it in place but transparent */
@@ -99,6 +101,8 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 10;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  pointer-events: none;
 }
 
 /* Remove terminal header completely */
@@ -113,6 +117,33 @@ body {
   background: #0a0a0a;
   border-radius: 0;
   scroll-behavior: smooth;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene but enable scrollbar */
+  pointer-events: none;
+}
+
+/* CRITICAL FIX: Enable scrollbar interactions */
+#terminal-body::-webkit-scrollbar {
+  width: 8px;
+  pointer-events: auto;
+}
+
+#terminal-body::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+  pointer-events: auto;
+}
+
+#terminal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #333 0%, #555 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+}
+
+#terminal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #444 0%, #666 100%);
+  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
 }
 
 #terminal-output {
@@ -120,6 +151,8 @@ body {
   word-wrap: break-word;
   margin-bottom: 8px;
   color: #e6e6e6;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  pointer-events: none;
 }
 
 /* Prompt Styling */
@@ -128,6 +161,8 @@ body {
   align-items: flex-start;
   margin-top: 8px;
   flex-wrap: wrap;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  pointer-events: none;
 }
 
 .prompt {
@@ -137,6 +172,8 @@ body {
   font-weight: bold;
   transition: all 0.3s ease;
   white-space: nowrap;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  pointer-events: none;
 }
 
 /* Input Container */
@@ -147,12 +184,16 @@ body {
   position: relative;
   min-width: 0;
   overflow: hidden;
+  /* CRITICAL FIX: Only allow pointer events on input container */
+  pointer-events: auto;
 }
 
 .completion {
   color: #888;
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   white-space: pre;
+  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  pointer-events: none;
 }
 
 .terminal-input-field {
@@ -177,6 +218,8 @@ body {
   min-height: 1.4em;
   max-height: 10em;
   overflow-y: auto;
+  /* CRITICAL FIX: Enable pointer events for the input field */
+  pointer-events: auto;
 }
 
 /* Typing animation */
@@ -340,28 +383,6 @@ body {
       0 0 20px currentColor,
       0 0 30px currentColor;
   }
-}
-
-/* Scrollbar */
-#terminal-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-#terminal-body::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border-radius: 4px;
-}
-
-#terminal-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #333 0%, #555 100%);
-  border-radius: 4px;
-  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
-  transition: all 0.3s ease;
-}
-
-#terminal-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #444 0%, #666 100%);
-  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
 }
 
 /* Responsive Design */

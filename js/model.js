@@ -327,17 +327,98 @@ export class Terminal3D {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Simple click handling - focus terminal when clicking anywhere
     const terminalInput = document.getElementById("terminal-input");
 
-    // Click anywhere to focus terminal
+    // CRITICAL FIX: Override the append_line function to include autoscroll
+    window.objzEnsureAutoscroll = () => {
+      const terminalBody = document.getElementById("terminal-body");
+      if (terminalBody) {
+        terminalBody.scrollTop = terminalBody.scrollHeight;
+      }
+    };
+
+    // Monitor DOM changes for autoscroll on new lines
+    const terminalOutput = document.getElementById("terminal-output");
+    if (terminalOutput) {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+            // New line added, trigger autoscroll
+            setTimeout(() => {
+              window.objzEnsureAutoscroll();
+            }, 0);
+          }
+        });
+      });
+
+      observer.observe(terminalOutput, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    // Raycaster for 3D screen click detection
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+
+    // IMPROVED: Click on 3D screen to focus terminal input with better detection
+    this.renderer.domElement.addEventListener("click", (event) => {
+      // Calculate mouse position in normalized device coordinates (-1 to +1)
+      this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      // Update the picking ray with the camera and mouse position
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      // Get all meshes to test intersection
+      const intersectables = [];
+      if (this.pcModel) {
+        this.pcModel.traverse((child) => {
+          if (child.isMesh) {
+            intersectables.push(child);
+          }
+        });
+      }
+      if (this.screenMesh && !intersectables.includes(this.screenMesh)) {
+        intersectables.push(this.screenMesh);
+      }
+
+      // Calculate objects intersecting the picking ray
+      const intersects = this.raycaster.intersectObjects(intersectables);
+
+      if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        console.log(
+          "Clicked object:",
+          clickedObject.name || "unnamed",
+          clickedObject,
+        );
+
+        // Check if it's the screen or if it has screen material
+        const isScreen =
+          clickedObject === this.screenMesh ||
+          clickedObject.material?.map === this.terminalTexture ||
+          (clickedObject.name &&
+            clickedObject.name.toLowerCase().includes("screen"));
+
+        if (isScreen) {
+          // Clicked on the screen! Focus the terminal input
+          if (terminalInput) {
+            terminalInput.focus();
+            console.log("Screen clicked - focusing terminal input");
+          }
+        }
+      }
+    });
+
+    // Basic focus on regular clicks (not on 3D canvas)
     document.addEventListener("click", (e) => {
       if (terminalInput && !e.target.closest("#scene-container canvas")) {
         terminalInput.focus();
       }
     });
 
-    // Key press to focus terminal
+    // Focus terminal on meaningful key presses
     document.addEventListener("keydown", (e) => {
       if (
         terminalInput &&
