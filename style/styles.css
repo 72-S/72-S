@@ -90,14 +90,15 @@ body {
   flex-direction: column;
 }
 
-/* When rendering as a texture, move it off-screen */
+/* When rendering as a texture, keep it in place but transparent */
 #terminal.texture-mode {
-  visibility: hidden;
-  position: absolute;
-  top: -10000px;
-  left: -10000px;
-  transform: none;
-  z-index: -1;
+  visibility: visible;
+  opacity: 0;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
 }
 
 /* Remove terminal header completely */

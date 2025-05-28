@@ -30,7 +30,7 @@ export class Terminal3D {
       this.hideLoading();
       this.animate();
     } catch (e) {
-      console.error("Init failed:", e);
+      console.error("3D init failed:", e);
       this.showError();
     }
   }
@@ -80,6 +80,7 @@ export class Terminal3D {
     this.controls.enableDamping = true;
     this.controls.target.set(0, 1, 0);
 
+    // lighting
     this.scene.add(new THREE.HemisphereLight(0x8be9fd, 0x444444, 0.3));
   }
 
@@ -95,6 +96,7 @@ export class Terminal3D {
           this.pcModel.scale.setScalar(1);
           this.pcModel.position.set(0, 0, 0);
 
+          // enable shadows & find screen
           this.pcModel.traverse((c) => {
             if (c.isMesh) {
               c.castShadow = c.receiveShadow = true;
@@ -152,14 +154,17 @@ export class Terminal3D {
   }
 
   createFallbackPC() {
+    // Create a simple fallback PC model if GLB fails to load
     const group = new THREE.Group();
 
+    // Monitor
     const monitorGeometry = new THREE.BoxGeometry(2, 1.2, 0.1);
     const monitorMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
     const monitor = new THREE.Mesh(monitorGeometry, monitorMaterial);
     monitor.position.set(0, 1, 0);
     group.add(monitor);
 
+    // Screen (this will be our texture target)
     const screenGeometry = new THREE.PlaneGeometry(1.8, 1);
     const screenMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const screen = new THREE.Mesh(screenGeometry, screenMaterial);
@@ -167,6 +172,7 @@ export class Terminal3D {
     this.screenMesh = screen;
     group.add(screen);
 
+    // Base
     const baseGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8);
     const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x444444 });
     const base = new THREE.Mesh(baseGeometry, baseMaterial);
@@ -194,36 +200,111 @@ export class Terminal3D {
     if (this.screenMesh) {
       this.screenMesh.material = new THREE.MeshBasicMaterial({
         map: this.terminalTexture,
-        emissive: new THREE.Color(0x001a1a), // Dark cyan glow
+        emissive: new THREE.Color(0x001a1a),
         emissiveIntensity: 0.1,
       });
     }
 
     this.updateTerminalTexture = () => {
       try {
+        const terminalBody = document.getElementById("terminal-body");
+        const terminalOutput = document.getElementById("terminal-output");
+
+        if (!terminalBody || !terminalOutput) return;
+
+        // Clear canvas
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = "#8be9fd";
-        ctx.font = "16px 'JetBrains Mono'";
+        // Get scroll info
+        const scrollTop = terminalBody.scrollTop;
+        const bodyHeight = terminalBody.clientHeight;
+        const lineHeight = 20;
 
-        const lines = Array.from(
-          document.querySelectorAll("#terminal-output div"),
-        ).map((d) => d.textContent || "");
+        // Calculate visible lines
+        const startLine = Math.floor(scrollTop / lineHeight);
+        const visibleLines = Math.ceil(bodyHeight / lineHeight) + 2; // +2 buffer
 
-        lines.forEach((ln, i) => {
-          ctx.fillStyle = "#e6e6e6";
-          if (ln.includes("objz@")) {
+        // Get all terminal lines
+        const outputDivs = Array.from(terminalOutput.children);
+
+        // Set font
+        ctx.font = "16px 'JetBrains Mono', monospace";
+
+        let y = 20;
+        let lineIndex = 0;
+
+        // Draw visible content
+        for (let i = 0; i < outputDivs.length; i++) {
+          const div = outputDivs[i];
+          const text = div.textContent || "";
+
+          // Split long lines
+          const maxChars = Math.floor((canvas.width - 40) / 10);
+          const lines = [];
+          if (text.length > maxChars) {
+            for (let j = 0; j < text.length; j += maxChars) {
+              lines.push(text.substring(j, j + maxChars));
+            }
+          } else {
+            lines.push(text);
+          }
+
+          // Draw lines that are in visible range
+          for (const line of lines) {
+            if (
+              lineIndex >= startLine &&
+              lineIndex < startLine + visibleLines
+            ) {
+              // Set color based on CSS classes
+              if (div.classList.contains("command")) {
+                ctx.fillStyle = "#8be9fd";
+              } else if (div.classList.contains("error")) {
+                ctx.fillStyle = "#ff5555";
+              } else if (div.classList.contains("success")) {
+                ctx.fillStyle = "#50fa7b";
+              } else if (div.classList.contains("warning")) {
+                ctx.fillStyle = "#ffb86c";
+              } else if (div.classList.contains("info")) {
+                ctx.fillStyle = "#bd93f9";
+              } else {
+                ctx.fillStyle = "#e6e6e6";
+              }
+
+              ctx.fillText(line, 20, y);
+              y += lineHeight;
+            }
+            lineIndex++;
+          }
+        }
+
+        // Draw current input line
+        const terminalInput = document.getElementById("terminal-input");
+        if (terminalInput) {
+          const promptElements = document.querySelectorAll(".prompt");
+          const currentPrompt = promptElements[promptElements.length - 1];
+          const promptText = currentPrompt
+            ? currentPrompt.textContent
+            : "objz:~$ ";
+          const inputValue = terminalInput.value;
+
+          // Only draw if this line would be visible
+          if (lineIndex >= startLine && lineIndex < startLine + visibleLines) {
             ctx.fillStyle = "#8be9fd"; // Prompt color
+            ctx.fillText(promptText, 20, y);
+
+            ctx.fillStyle = "#f8f8f2"; // Input color
+            const promptWidth = ctx.measureText(promptText).width;
+            ctx.fillText(inputValue, 20 + promptWidth, y);
+
+            // Draw cursor if focused
+            if (document.activeElement === terminalInput) {
+              const inputWidth = ctx.measureText(inputValue).width;
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(20 + promptWidth + inputWidth, y - 15, 2, 18);
+            }
           }
-          if (ln.includes("error") || ln.includes("Error")) {
-            ctx.fillStyle = "#ff5555"; // Error color
-          }
-          if (ln.includes("success") || ln.includes("Success")) {
-            ctx.fillStyle = "#50fa7b"; // Success color
-          }
-          ctx.fillText(ln, 10, 20 + i * 20);
-        });
+        }
 
         this.terminalTexture.needsUpdate = true;
       } catch (e) {
@@ -231,37 +312,49 @@ export class Terminal3D {
       }
     };
 
+    // Update texture regularly
     this.updateTerminalTexture();
     setInterval(() => {
-      if (!this.isTerminalFocused) this.updateTerminalTexture();
-    }, 500);
+      this.updateTerminalTexture();
+    }, 100); // More frequent updates for better responsiveness
   }
 
   setupEventListeners() {
+    // Window resize
     window.addEventListener("resize", () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    const ray = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    this.renderer.domElement.addEventListener("click", (e) => {
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-      ray.setFromCamera(mouse, this.camera);
-      ray.intersectObjects(this.scene.children, true).forEach((inter) => {
-        if (inter.object === this.screenMesh) {
-          this.updateTerminalTexture();
-        }
-      });
+    // Simple click handling - focus terminal when clicking anywhere
+    const terminalInput = document.getElementById("terminal-input");
+
+    // Click anywhere to focus terminal
+    document.addEventListener("click", (e) => {
+      if (terminalInput && !e.target.closest("#scene-container canvas")) {
+        terminalInput.focus();
+      }
+    });
+
+    // Key press to focus terminal
+    document.addEventListener("keydown", (e) => {
+      if (
+        terminalInput &&
+        document.activeElement !== terminalInput &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        e.key.length === 1
+      ) {
+        terminalInput.focus();
+      }
     });
   }
 
   animate() {
     this.animationId = requestAnimationFrame(() => this.animate());
     this.controls.update();
-    // Auto-spinning removed as requested
     this.renderer.render(this.scene, this.camera);
   }
 
