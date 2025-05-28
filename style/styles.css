@@ -70,14 +70,12 @@ body {
   transition: width 0.3s ease;
   box-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
 }
-
-/* Terminal Styles */
 #terminal {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10;
+  z-index: 1; /* Lower than scene-container */
   width: 800px;
   height: 600px;
   visibility: hidden;
@@ -87,9 +85,9 @@ body {
   box-shadow: none;
   display: flex;
   flex-direction: column;
+  /* Remove pointer-events: none */
 }
 
-/* When rendering as a texture, keep it in place but transparent */
 #terminal.texture-mode {
   visibility: visible;
   opacity: 0;
@@ -97,12 +95,8 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10;
-}
-
-/* Remove terminal header completely */
-#terminal-header {
-  display: none;
+  z-index: 1;
+  /* Remove pointer-events: none */
 }
 
 #terminal-body {
@@ -112,26 +106,17 @@ body {
   background: #0a0a0a;
   border-radius: 0;
   scroll-behavior: smooth;
-}
-#terminal-body::-webkit-scrollbar {
-  width: 8px;
+  /* Remove pointer-events: none */
 }
 
-#terminal-body::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border-radius: 4px;
-}
-
-#terminal-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #333 0%, #555 100%);
-  border-radius: 4px;
-  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
-  transition: all 0.3s ease;
-}
-
-#terminal-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #444 0%, #666 100%);
-  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+/* Make scene-container have higher z-index */
+#scene-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10; /* Higher than terminal */
 }
 
 #terminal-output {
@@ -139,20 +124,25 @@ body {
   word-wrap: break-word;
   margin-bottom: 8px;
   color: #e6e6e6;
-  /* Keep output non-interactive */
-  pointer-events: none;
+  /* Remove pointer-events: none */
 }
 
-/* Prompt Styling */
 .prompt-line {
   display: flex;
   align-items: flex-start;
   margin-top: 8px;
   flex-wrap: wrap;
+  /* Remove pointer-events: none */
 }
 
 .prompt {
   color: #8be9fd;
+  margin-right: 8px;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
+  font-weight: bold;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  /* Remove pointer-events: none */
 }
 
 /* Input container and textarea interactions */
