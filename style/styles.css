@@ -55,7 +55,6 @@ body {
   margin-bottom: 20px;
   text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
 }
-
 .loading-bar {
   width: 300px;
   height: 4px;
@@ -88,8 +87,6 @@ body {
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
-  pointer-events: none;
 }
 
 /* When rendering as a texture, keep it in place but transparent */
@@ -101,8 +98,6 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 10;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
-  pointer-events: none;
 }
 
 /* Remove terminal header completely */
@@ -117,20 +112,14 @@ body {
   background: #0a0a0a;
   border-radius: 0;
   scroll-behavior: smooth;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene but enable scrollbar */
-  pointer-events: none;
 }
-
-/* CRITICAL FIX: Enable scrollbar interactions */
 #terminal-body::-webkit-scrollbar {
   width: 8px;
-  pointer-events: auto;
 }
 
 #terminal-body::-webkit-scrollbar-track {
   background: #1a1a1a;
   border-radius: 4px;
-  pointer-events: auto;
 }
 
 #terminal-body::-webkit-scrollbar-thumb {
@@ -138,7 +127,6 @@ body {
   border-radius: 4px;
   box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
   transition: all 0.3s ease;
-  pointer-events: auto;
 }
 
 #terminal-body::-webkit-scrollbar-thumb:hover {
@@ -151,7 +139,7 @@ body {
   word-wrap: break-word;
   margin-bottom: 8px;
   color: #e6e6e6;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
+  /* Keep output non-interactive */
   pointer-events: none;
 }
 
@@ -161,193 +149,29 @@ body {
   align-items: flex-start;
   margin-top: 8px;
   flex-wrap: wrap;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
-  pointer-events: none;
 }
 
 .prompt {
   color: #8be9fd;
-  margin-right: 8px;
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
-  font-weight: bold;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
-  pointer-events: none;
 }
 
-/* Input Container */
+/* Input container and textarea interactions */
 .input-container {
-  display: flex;
-  align-items: flex-start;
-  flex: 1;
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  /* CRITICAL FIX: Only allow pointer events on input container */
+  width: 100%;
   pointer-events: auto;
-}
-
-.completion {
-  color: #888;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  white-space: pre;
-  /* CRITICAL FIX: Allow mouse events to pass through to 3D scene */
-  pointer-events: none;
 }
 
 .terminal-input-field {
   background: transparent;
   border: none;
+  color: #e6e6e6;
+  caret-color: #ffffff;
   outline: none;
-  color: #f8f8f2;
+  resize: none;
+  width: 100%;
   font-family: inherit;
   font-size: inherit;
-  flex: 1;
-  padding: 0;
-  margin: 0;
-  transition: text-shadow 0.15s ease;
-  caret-color: #ffffff;
-  min-width: 0;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  resize: none;
-  line-height: 1.4;
-  height: auto;
-  min-height: 1.4em;
-  max-height: 10em;
-  overflow-y: auto;
-  /* CRITICAL FIX: Enable pointer events for the input field */
-  pointer-events: auto;
-}
-
-/* Typing animation */
-.terminal-input-field.typing {
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.6);
-  transition: text-shadow 0.1s ease-out;
-}
-
-.terminal-input-field:focus {
-  caret-color: #ffffff;
-  animation: caretBlink 1s infinite;
-}
-
-/* Color Classes */
-.command {
-  color: #8be9fd;
-  text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
-  animation: fadeInLeft 0.2s ease-out;
-}
-
-.error {
-  color: #ff5555;
-  text-shadow: 0 0 5px rgba(255, 85, 85, 0.3);
-  animation: fadeInLeft 0.15s ease-out;
-}
-
-.success {
-  color: #50fa7b;
-  text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
-  animation: fadeInLeft 0.15s ease-out;
-}
-
-.info {
-  color: #bd93f9;
-  text-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
-  animation: fadeInLeft 0.1s ease-out;
-}
-
-.warning {
-  color: #ffb86c;
-  text-shadow: 0 0 5px rgba(255, 184, 108, 0.3);
-  animation: fadeInLeft 0.15s ease-out;
-}
-
-.ascii {
-  color: #f1fa8c;
-  font-family: monospace;
-  white-space: pre;
-  text-shadow: 0 0 10px rgba(241, 250, 140, 0.2);
-  animation: fadeInLeft 0.1s ease-out;
-}
-
-.cyan {
-  color: #8be9fd;
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
-}
-.green {
-  color: #50fa7b;
-  text-shadow: 0 0 10px rgba(80, 250, 123, 0.3);
-}
-.yellow {
-  color: #f1fa8c;
-  text-shadow: 0 0 10px rgba(241, 250, 140, 0.3);
-}
-.purple {
-  color: #bd93f9;
-  text-shadow: 0 0 10px rgba(189, 147, 249, 0.3);
-}
-.pink {
-  color: #ff79c6;
-  text-shadow: 0 0 10px rgba(255, 121, 198, 0.3);
-}
-.orange {
-  color: #ffb86c;
-  text-shadow: 0 0 10px rgba(255, 184, 108, 0.3);
-}
-.red {
-  color: #ff5555;
-  text-shadow: 0 0 10px rgba(255, 85, 85, 0.3);
-}
-.blue {
-  color: #6272a4;
-  text-shadow: 0 0 10px rgba(98, 114, 164, 0.3);
-}
-.white {
-  color: #f8f8f2;
-  text-shadow: 0 0 5px rgba(248, 248, 242, 0.3);
-}
-
-/* Special styling */
-.header {
-  color: #8be9fd;
-  font-weight: bold;
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
-}
-
-.highlight {
-  color: #f1fa8c;
-  background: rgba(241, 250, 140, 0.1);
-  padding: 2px 4px;
-  border-radius: 3px;
-  text-shadow: 0 0 5px rgba(241, 250, 140, 0.3);
-}
-
-.muted {
-  color: #6272a4;
-  text-shadow: none;
-}
-
-.link {
-  color: #8be9fd;
-  text-decoration: underline;
-  text-shadow: 0 0 5px rgba(139, 233, 253, 0.3);
-}
-
-.path {
-  color: #50fa7b;
-  text-shadow: 0 0 5px rgba(80, 250, 123, 0.3);
-}
-
-.file {
-  color: #f8f8f2;
-  animation: fadeInLeft 0.08s ease-out;
-}
-
-.directory {
-  color: #50fa7b;
-  animation: fadeInLeft 0.08s ease-out;
+  line-height: inherit;
 }
 
 /* Animations */

@@ -5,9 +5,10 @@ use crate::utils::{
     dom::{append_line, clear_output},
     panic::system_panic,
 };
+use js_sys::Promise;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::spawn_local;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{window, Event, HtmlTextAreaElement, KeyboardEvent};
 
 impl Terminal {
@@ -138,13 +139,11 @@ impl Terminal {
         let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
             "Tab" => {
                 ev.prevent_default();
-
                 let current_input = clone_in.value();
                 let current_path = {
                     use crate::commands::filesystem::CURRENT_PATH;
                     CURRENT_PATH.lock().unwrap().clone()
                 };
-
                 let completion_result = autocomplete
                     .borrow_mut()
                     .complete(&current_input, &current_path);
@@ -159,7 +158,6 @@ impl Terminal {
                             new_parts.push(&completion);
                             clone_in.set_value(&format!("{} ", new_parts.join(" ")));
                         }
-
                         let text_length = clone_in.value().len() as u32;
                         let _ = clone_in.set_selection_range(text_length, text_length);
                     }
@@ -175,50 +173,37 @@ impl Terminal {
                             };
                             format!("{}:{}$ ", base_prompt, display_path)
                         };
-
                         let line = format!("{}{}", current_prompt, current_input);
                         append_line(&out_el, &line, Some("command"));
 
                         let matches_per_line = 4;
                         let mut output = String::new();
                         for chunk in matches.chunks(matches_per_line) {
-                            let line = chunk
+                            let row = chunk
                                 .iter()
                                 .map(|s| format!("{:<20}", s))
                                 .collect::<Vec<_>>()
                                 .join("");
-                            output.push_str(&line);
+                            output.push_str(&row);
                             output.push('\n');
                         }
-
                         for line in output.lines() {
                             if !line.trim().is_empty() {
                                 append_line(&out_el, line, Some("completion"));
                             }
                         }
-
-                        if let Some(common_prefix) =
+                        if let Some(common) =
                             crate::terminal::autocomplete::find_common_prefix(&matches)
                         {
                             let parts: Vec<&str> =
                                 current_input.trim().split_whitespace().collect();
-                            if parts.len() <= 1 {
-                                if common_prefix.len() > current_input.trim().len() {
-                                    clone_in.set_value(&common_prefix);
-                                }
-                            } else {
-                                let current_partial = parts.last().map_or("", |v| v); // fix lol
-                                if common_prefix.len() > current_partial.len() {
-                                    let mut new_parts = parts[..parts.len() - 1].to_vec();
-                                    new_parts.push(&common_prefix);
-                                    clone_in.set_value(&new_parts.join(" "));
-                                }
+                            if parts.len() <= 1 && common.len() > current_input.trim().len() {
+                                clone_in.set_value(&common);
+                            } else if parts.len() > 1 {
+                                let prefix = parts[..parts.len() - 1].join(" ");
+                                clone_in.set_value(&format!("{} {}", prefix, common));
                             }
-
-                            let text_length = clone_in.value().len() as u32;
-                            let _ = clone_in.set_selection_range(text_length, text_length);
                         }
-
                         ensure_autoscroll();
                     }
                     crate::terminal::autocomplete::CompletionResult::None => {}
@@ -254,9 +239,7 @@ impl Terminal {
                 let (result, directory_changed) = processor.handle(&val);
 
                 match result.as_str() {
-                    "CLEAR_SCREEN" => {
-                        clear_output(&out_el);
-                    }
+                    "CLEAR_SCREEN" => clear_output(&out_el),
                     "SYSTEM_PANIC" => {
                         let out_clone = out_el.clone();
                         spawn_local(async move {
@@ -264,85 +247,70 @@ impl Terminal {
                         });
                     }
                     _ => {
-                        for line in result.lines() {
-                            append_line(&out_el, line, None);
-                            ensure_autoscroll();
-                        }
+                        let out_clone = out_el.clone();
+                        let lines: Vec<String> = result.lines().map(str::to_owned).collect();
+                        spawn_local(async move {
+                            for line in lines {
+                                append_line(&out_clone, &line, None);
+                                ensure_autoscroll();
+                                let promise = Promise::new(&mut |resolve, _| {
+                                    window()
+                                        .unwrap()
+                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                            &resolve, 0,
+                                        )
+                                        .unwrap();
+                                });
+                                let _ = JsFuture::from(promise).await;
+                            }
+                        });
                     }
                 }
 
                 if directory_changed {
                     let doc = window().unwrap().document().unwrap();
-                    if let Some(prompt_element) =
-                        doc.query_selector(".prompt-line .prompt").unwrap()
-                    {
+                    if let Some(prompt_el) = doc.query_selector(".prompt-line .prompt").unwrap() {
                         let new_cwd = processor.get_current_directory();
-                        let new_display_path = if new_cwd == "/home/objz" {
+                        let new_display = if new_cwd == "/home/objz" {
                             "~".to_string()
                         } else if new_cwd.starts_with("/home/objz/") {
                             format!("~{}", &new_cwd["/home/objz".len()..])
                         } else {
                             new_cwd
                         };
-                        let new_prompt = format!("{}:{}$ ", base_prompt, new_display_path);
-                        prompt_element.set_text_content(Some(&new_prompt));
+                        prompt_el
+                            .set_text_content(Some(&format!("{}:{}$ ", base_prompt, new_display)));
                     }
                 }
             }
+
             "ArrowUp" => {
                 ev.prevent_default();
                 if let Some(cmd) = history.previous() {
                     clone_in.set_value(&cmd);
                     clone_in.focus().unwrap();
-
-                    let text_length = cmd.len() as u32;
-                    let _ = clone_in.set_selection_range(text_length, text_length);
-                    let _ = clone_in.set_selection_start(Some(text_length));
-                    let _ = clone_in.set_selection_end(Some(text_length));
-
-                    let clone_for_timeout = clone_in.clone();
-                    let timeout_closure = Closure::wrap(Box::new(move || {
-                        let _ = clone_for_timeout.set_selection_range(text_length, text_length);
-                        let _ = clone_for_timeout.set_selection_start(Some(text_length));
-                        let _ = clone_for_timeout.set_selection_end(Some(text_length));
+                    let len = cmd.len() as u32;
+                    let _ = clone_in.set_selection_range(len, len);
+                    // clone for timeout instead of moving original
+                    let input_clone = clone_in.clone();
+                    let timeout = Closure::wrap(Box::new(move || {
+                        let _ = input_clone.set_selection_range(len, len);
                     }) as Box<dyn FnMut()>);
-
                     window()
                         .unwrap()
                         .set_timeout_with_callback_and_timeout_and_arguments_0(
-                            timeout_closure.as_ref().unchecked_ref(),
+                            timeout.as_ref().unchecked_ref(),
                             0,
                         )
                         .unwrap();
-                    timeout_closure.forget();
+                    timeout.forget();
                 }
             }
+
             "ArrowDown" => {
                 ev.prevent_default();
                 if let Some(cmd) = history.next() {
                     clone_in.set_value(&cmd);
-                    clone_in.focus().unwrap();
-
-                    let text_length = cmd.len() as u32;
-                    let _ = clone_in.set_selection_range(text_length, text_length);
-                    let _ = clone_in.set_selection_start(Some(text_length));
-                    let _ = clone_in.set_selection_end(Some(text_length));
-
-                    let clone_for_timeout = clone_in.clone();
-                    let timeout_closure = Closure::wrap(Box::new(move || {
-                        let _ = clone_for_timeout.set_selection_range(text_length, text_length);
-                        let _ = clone_for_timeout.set_selection_start(Some(text_length));
-                        let _ = clone_for_timeout.set_selection_end(Some(text_length));
-                    }) as Box<dyn FnMut()>);
-
-                    window()
-                        .unwrap()
-                        .set_timeout_with_callback_and_timeout_and_arguments_0(
-                            timeout_closure.as_ref().unchecked_ref(),
-                            0,
-                        )
-                        .unwrap();
-                    timeout_closure.forget();
                 } else {
                     clone_in.set_value("");
                 }
