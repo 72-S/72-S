@@ -30,7 +30,7 @@ export class Terminal3D {
       this.hideLoading();
       this.animate();
     } catch (e) {
-      console.error("3D init failed:", e);
+      console.error("Init failed:", e);
       this.showError();
     }
   }
@@ -80,7 +80,6 @@ export class Terminal3D {
     this.controls.enableDamping = true;
     this.controls.target.set(0, 1, 0);
 
-    // lighting
     this.scene.add(new THREE.HemisphereLight(0x8be9fd, 0x444444, 0.3));
   }
 
@@ -96,7 +95,6 @@ export class Terminal3D {
           this.pcModel.scale.setScalar(1);
           this.pcModel.position.set(0, 0, 0);
 
-          // enable shadows & find screen
           this.pcModel.traverse((c) => {
             if (c.isMesh) {
               c.castShadow = c.receiveShadow = true;
@@ -154,17 +152,14 @@ export class Terminal3D {
   }
 
   createFallbackPC() {
-    // Create a simple fallback PC model if GLB fails to load
     const group = new THREE.Group();
 
-    // Monitor
     const monitorGeometry = new THREE.BoxGeometry(2, 1.2, 0.1);
     const monitorMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
     const monitor = new THREE.Mesh(monitorGeometry, monitorMaterial);
     monitor.position.set(0, 1, 0);
     group.add(monitor);
 
-    // Screen (this will be our texture target)
     const screenGeometry = new THREE.PlaneGeometry(1.8, 1);
     const screenMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const screen = new THREE.Mesh(screenGeometry, screenMaterial);
@@ -172,7 +167,6 @@ export class Terminal3D {
     this.screenMesh = screen;
     group.add(screen);
 
-    // Base
     const baseGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8);
     const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x444444 });
     const base = new THREE.Mesh(baseGeometry, baseMaterial);
@@ -195,7 +189,7 @@ export class Terminal3D {
     this.terminalTexture = new THREE.CanvasTexture(canvas);
     this.terminalTexture.minFilter = THREE.LinearFilter;
     this.terminalTexture.magFilter = THREE.LinearFilter;
-    this.terminalTexture.flipY = true; // Fix upside-down content
+    this.terminalTexture.flipY = true;
 
     if (this.screenMesh) {
       this.screenMesh.material = new THREE.MeshBasicMaterial({
@@ -207,12 +201,10 @@ export class Terminal3D {
 
     this.updateTerminalTexture = () => {
       try {
-        // Match original terminal background color
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // No header - start content directly
-        ctx.fillStyle = "#8be9fd"; // Original cyan color
+        ctx.fillStyle = "#8be9fd";
         ctx.font = "16px 'JetBrains Mono'";
 
         const lines = Array.from(
@@ -220,8 +212,7 @@ export class Terminal3D {
         ).map((d) => d.textContent || "");
 
         lines.forEach((ln, i) => {
-          // Use original terminal colors
-          ctx.fillStyle = "#e6e6e6"; // Default text color
+          ctx.fillStyle = "#e6e6e6";
           if (ln.includes("objz@")) {
             ctx.fillStyle = "#8be9fd"; // Prompt color
           }
