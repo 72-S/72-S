@@ -1,18 +1,18 @@
 use crate::input::autoscroll::ensure_autoscroll;
 use crate::terminal::Terminal;
-use crate::utils::{dom::append_line, scroll::scroll_to_bottom};
+use crate::utils::dom::append_line;
 
 impl Terminal {
     pub async fn add_line_boot(&self, task: &str, status: &str, _color: &str) {
         let div = self.create_div_element("", Some("boot-line"));
         self.output_element.append_child(&div).unwrap();
-        scroll_to_bottom(&self.output_element);
+        ensure_autoscroll(); // Add autoscroll immediately after adding element
 
         for i in 0..4 {
             let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
             let text = format!("{} {}", task, spinner[i]);
             div.set_inner_html(&text);
-            scroll_to_bottom(&self.output_element);
+            ensure_autoscroll(); // Autoscroll after each spinner update
             self.sleep(60).await;
         }
 
@@ -22,15 +22,14 @@ impl Terminal {
             format!("{} <span class=\"status\">{}</span>", task, status)
         };
         div.set_inner_html(&final_html);
-        scroll_to_bottom(&self.output_element);
-        ensure_autoscroll();
+        ensure_autoscroll(); // Final autoscroll
     }
 
     pub async fn add_line_typing(&self, text: &str, speed: u32) {
         let div = self.create_div_element("", None);
         div.set_class_name("typing-line");
         self.output_element.append_child(&div).unwrap();
-        scroll_to_bottom(&self.output_element);
+        ensure_autoscroll(); // Add autoscroll immediately after adding element
 
         let mut buf = String::new();
         for (i, ch) in text.chars().enumerate() {
@@ -41,18 +40,18 @@ impl Terminal {
                 buf.clone()
             };
             div.set_inner_html(&display);
-            scroll_to_bottom(&self.output_element);
+            ensure_autoscroll(); // Autoscroll after each character
             self.sleep(speed as i32).await;
         }
         div.set_inner_html(&buf);
-        ensure_autoscroll();
+        ensure_autoscroll(); // Final autoscroll
     }
 
     pub async fn add_colored_line_typing(&self, text: &str, speed: u32, color: &str) {
         let div = self.create_div_element("", Some(color));
         div.set_class_name(&format!("typing-line {}", color));
         self.output_element.append_child(&div).unwrap();
-        scroll_to_bottom(&self.output_element);
+        ensure_autoscroll(); // Add autoscroll immediately after adding element
 
         let mut buf = String::new();
         for (i, ch) in text.chars().enumerate() {
@@ -63,20 +62,20 @@ impl Terminal {
                 buf.clone()
             };
             div.set_inner_html(&display);
-            scroll_to_bottom(&self.output_element);
+            ensure_autoscroll(); // Autoscroll after each character
             self.sleep(speed as i32).await;
         }
         div.set_inner_html(&buf);
-        ensure_autoscroll();
+        ensure_autoscroll(); // Final autoscroll
     }
 
     pub async fn add_line(&self, text: &str) {
         append_line(&self.output_element, text, None);
-        scroll_to_bottom(&self.output_element);
+        ensure_autoscroll(); // Autoscroll immediately after adding line
     }
 
     pub async fn add_line_colored(&self, text: &str, color: &str) {
         append_line(&self.output_element, text, Some(color));
-        scroll_to_bottom(&self.output_element);
+        ensure_autoscroll(); // Autoscroll immediately after adding line
     }
 }

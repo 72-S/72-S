@@ -1,5 +1,7 @@
 use web_sys::{window, Element};
 
+use crate::input::autoscroll::ensure_autoscroll;
+
 pub fn create_div(text: &str, class: Option<&str>) -> Element {
     let div = window()
         .unwrap()
@@ -24,6 +26,7 @@ pub fn create_div(text: &str, class: Option<&str>) -> Element {
 pub fn append_line(element: &Element, text: &str, class: Option<&str>) {
     let div = create_div(text, class);
     element.append_child(&div).unwrap();
+    ensure_autoscroll();
 }
 
 pub fn clear_output(element: &Element) {
