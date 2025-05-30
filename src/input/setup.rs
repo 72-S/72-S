@@ -10,117 +10,23 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{window, Event, HtmlTextAreaElement, KeyboardEvent};
 
+// Add thread-local storage for current input
+thread_local! {
+    static CURRENT_INPUT: RefCell<String> = RefCell::new(String::new());
+}
+
 impl Terminal {
     pub fn init_shell(&self) {
-        self.create_prompt_input();
-        self.show_prompt();
-        self.setup_input_handlers();
+        // Remove the DOM-based input creation
+        // self.create_prompt_input();
+
+        // Initialize canvas-based prompt
+        self.prepare_for_input();
+
+        self.setup_canvas_input_handlers();
     }
 
-    fn create_prompt_input(&self) {
-        let doc = window().unwrap().document().unwrap();
-
-        let prompt_div = doc.create_element("div").unwrap();
-        prompt_div.set_class_name("prompt-line");
-
-        let label = doc.create_element("span").unwrap();
-        label.set_class_name("prompt");
-        label.set_text_content(Some(&self.get_current_prompt()));
-
-        let textarea = doc
-            .create_element("textarea")
-            .unwrap()
-            .dyn_into::<HtmlTextAreaElement>()
-            .unwrap();
-        textarea.set_id("terminal-input");
-        textarea.set_class_name("terminal-input");
-        textarea.set_attribute("autocomplete", "off").unwrap();
-        textarea.set_attribute("spellcheck", "false").unwrap();
-        textarea.set_attribute("rows", "1").unwrap();
-        textarea.set_attribute("wrap", "soft").unwrap();
-
-        prompt_div.append_child(&label).unwrap();
-        prompt_div.append_child(&textarea).unwrap();
-        self.canvas.append_child(&prompt_div).unwrap();
-    }
-
-    fn setup_input_handlers(&self) {
-        self.setup_auto_resize();
-        self.setup_typing_animation();
-        self.setup_key_handler();
-    }
-
-    fn setup_auto_resize(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc.get_element_by_id("terminal-input").unwrap();
-        let clone = input.clone();
-
-        let on_input = Closure::wrap(Box::new(move |_e: Event| {
-            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
-                tx.style().set_property("height", "auto").unwrap();
-                let scroll_h = tx.scroll_height();
-
-                let line_h = 22;
-                let max_lines = 10;
-
-                let min_h = line_h;
-                let max_h = line_h * max_lines;
-                let h = scroll_h.max(min_h).min(max_h);
-
-                tx.style()
-                    .set_property("height", &format!("{}px", h))
-                    .unwrap();
-
-                let rows = (h / line_h).max(1);
-                tx.set_attribute("rows", &rows.to_string()).unwrap();
-            }
-        }) as Box<dyn FnMut(_)>);
-
-        input
-            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
-            .unwrap();
-        on_input.forget();
-    }
-
-    fn setup_typing_animation(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc.get_element_by_id("terminal-input").unwrap();
-        let clone = input.clone();
-
-        let on_input = Closure::wrap(Box::new(move |_e: Event| {
-            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
-                tx.set_class_name("terminal-input typing");
-                let tx_clone = tx.clone();
-
-                let rm_typing = Closure::wrap(Box::new(move || {
-                    tx_clone.set_class_name("terminal-input");
-                }) as Box<dyn FnMut()>);
-
-                window()
-                    .unwrap()
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                        rm_typing.as_ref().unchecked_ref(),
-                        150,
-                    )
-                    .unwrap();
-                rm_typing.forget();
-            }
-        }) as Box<dyn FnMut(_)>);
-
-        input
-            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
-            .unwrap();
-        on_input.forget();
-    }
-
-    fn setup_key_handler(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc
-            .get_element_by_id("terminal-input")
-            .unwrap()
-            .dyn_into::<HtmlTextAreaElement>()
-            .unwrap();
-
+    fn setup_canvas_input_handlers(&self) {
         let mut history = {
             let mut h = CommandHistory::new(50);
             for cmd in &["help", "clear", "ls"] {
@@ -131,63 +37,108 @@ impl Terminal {
 
         let mut processor = self.command_handler.clone();
         let base_prompt = self.base_prompt.clone();
-        let clone_in = input.clone();
         let term_clone = self.clone();
 
         let autocomplete = Rc::new(RefCell::new(
             crate::terminal::autocomplete::AutoComplete::new(),
         ));
 
-        let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
-            "Tab" => {
-                ev.prevent_default();
-                Self::handle_tab_completion(
-                    &clone_in,
-                    &autocomplete,
-                    &processor,
-                    &base_prompt,
-                    &term_clone,
-                );
-            }
+        // Set up keydown event listener on the canvas
+        let canvas_clone = self.canvas.clone();
+        let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| {
+            // Make sure canvas is focused
+            let _ = canvas_clone.focus();
 
-            "Enter" if !ev.shift_key() => {
-                ev.prevent_default();
-                Self::handle_enter(
-                    &clone_in,
-                    &mut history,
-                    &mut processor,
-                    &base_prompt,
-                    &term_clone,
-                );
-            }
+            match ev.key().as_str() {
+                "Tab" => {
+                    ev.prevent_default();
+                    CURRENT_INPUT.with(|input| {
+                        let current_input = input.borrow().clone();
+                        Self::handle_canvas_tab_completion(
+                            &current_input,
+                            &autocomplete,
+                            &processor,
+                            &base_prompt,
+                            &term_clone,
+                        );
+                    });
+                }
 
-            "ArrowUp" => {
-                ev.prevent_default();
-                Self::handle_history_up(&clone_in, &mut history);
-            }
+                "Enter" => {
+                    ev.prevent_default();
+                    CURRENT_INPUT.with(|input| {
+                        let current_input = input.borrow().clone();
+                        Self::handle_canvas_enter(
+                            &current_input,
+                            &mut history,
+                            &mut processor,
+                            &base_prompt,
+                            &term_clone,
+                        );
+                        input.borrow_mut().clear();
+                        term_clone.prepare_for_input();
+                    });
+                }
 
-            "ArrowDown" => {
-                ev.prevent_default();
-                Self::handle_history_down(&clone_in, &mut history);
-            }
+                "Backspace" => {
+                    ev.prevent_default();
+                    CURRENT_INPUT.with(|input| {
+                        let mut current_input = input.borrow_mut();
+                        if !current_input.is_empty() {
+                            current_input.pop();
+                            term_clone.update_input_display(&current_input);
+                        }
+                    });
+                }
 
-            _ => {}
+                "ArrowUp" => {
+                    ev.prevent_default();
+                    if let Some(cmd) = history.previous() {
+                        CURRENT_INPUT.with(|input| {
+                            *input.borrow_mut() = cmd;
+                            term_clone.update_input_display(&input.borrow());
+                        });
+                    }
+                }
+
+                "ArrowDown" => {
+                    ev.prevent_default();
+                    let cmd = history.next().unwrap_or_default();
+                    CURRENT_INPUT.with(|input| {
+                        *input.borrow_mut() = cmd;
+                        term_clone.update_input_display(&input.borrow());
+                    });
+                }
+
+                _ => {
+                    // Handle regular character input
+                    if ev.key().len() == 1 && !ev.ctrl_key() && !ev.alt_key() && !ev.meta_key() {
+                        CURRENT_INPUT.with(|input| {
+                            input.borrow_mut().push_str(&ev.key());
+                            term_clone.update_input_display(&input.borrow());
+                        });
+                    }
+                }
+            }
         }) as Box<dyn FnMut(_)>);
 
-        input
+        self.canvas
             .add_event_listener_with_callback("keydown", handler.as_ref().unchecked_ref())
             .unwrap();
         handler.forget();
+
+        // Make sure canvas can receive focus
+        self.canvas.set_attribute("tabindex", "0").unwrap();
+        let _ = self.canvas.focus();
     }
 
-    fn handle_tab_completion(
-        input: &HtmlTextAreaElement,
+    fn handle_canvas_tab_completion(
+        current_input: &str,
         autocomplete: &Rc<RefCell<crate::terminal::autocomplete::AutoComplete>>,
         processor: &crate::commands::CommandHandler,
         base_prompt: &str,
         terminal: &Terminal,
     ) {
-        let current_input = input.value();
         let current_path = {
             use crate::commands::filesystem::CURRENT_PATH;
             CURRENT_PATH.lock().unwrap().clone()
@@ -200,15 +151,18 @@ impl Terminal {
         match completion_result {
             crate::terminal::autocomplete::CompletionResult::Single(completion) => {
                 let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
-                if parts.len() <= 1 {
-                    input.set_value(&format!("{} ", completion));
+                let new_input = if parts.len() <= 1 {
+                    format!("{} ", completion)
                 } else {
                     let mut new_parts = parts[..parts.len() - 1].to_vec();
                     new_parts.push(&completion);
-                    input.set_value(&format!("{} ", new_parts.join(" ")));
-                }
-                let text_length = input.value().len() as u32;
-                let _ = input.set_selection_range(text_length, text_length);
+                    format!("{} ", new_parts.join(" "))
+                };
+
+                CURRENT_INPUT.with(|input| {
+                    *input.borrow_mut() = new_input.clone();
+                    terminal.update_input_display(&new_input);
+                });
             }
 
             crate::terminal::autocomplete::CompletionResult::Multiple(matches) => {
@@ -226,12 +180,21 @@ impl Terminal {
 
                 if let Some(common) = crate::terminal::autocomplete::find_common_prefix(&matches) {
                     let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
-                    if parts.len() <= 1 && common.len() > current_input.trim().len() {
-                        input.set_value(&common);
+                    let new_input = if parts.len() <= 1 && common.len() > current_input.trim().len()
+                    {
+                        common
                     } else if parts.len() > 1 {
                         let prefix = parts[..parts.len() - 1].join(" ");
-                        input.set_value(&format!("{} {}", prefix, common));
-                    }
+                        format!("{} {}", prefix, common)
+                    } else {
+                        current_input.to_string()
+                    };
+
+                    CURRENT_INPUT.with(|input| {
+                        *input.borrow_mut() = new_input.clone();
+                        terminal.prepare_for_input();
+                        terminal.update_input_display(&new_input);
+                    });
                 }
             }
 
@@ -239,24 +202,19 @@ impl Terminal {
         }
     }
 
-    fn handle_enter(
-        input: &HtmlTextAreaElement,
+    fn handle_canvas_enter(
+        current_input: &str,
         history: &mut CommandHistory,
         processor: &mut crate::commands::CommandHandler,
         base_prompt: &str,
         terminal: &Terminal,
     ) {
-        let val = input.value();
-        if !val.trim().is_empty() {
-            history.add(val.clone());
+        if !current_input.trim().is_empty() {
+            history.add(current_input.to_string());
         }
 
-        input.set_value("");
-        input.style().set_property("height", "auto").unwrap();
-        input.set_attribute("rows", "1").unwrap();
-
         let current_prompt = Self::build_prompt(processor, base_prompt);
-        let line = format!("{}{}", current_prompt, val);
+        let line = format!("{}{}", current_prompt, current_input);
 
         let term_clone_for_command = terminal.clone();
         spawn_local(async move {
@@ -265,7 +223,7 @@ impl Terminal {
                 .await;
         });
 
-        let (result, directory_changed) = processor.handle(&val);
+        let (result, directory_changed) = processor.handle(&current_input);
 
         match result.as_str() {
             "CLEAR_SCREEN" => terminal.clear_output(),
@@ -280,40 +238,8 @@ impl Terminal {
             }
         }
 
-        if directory_changed {
-            Self::update_prompt_display(processor, base_prompt);
-        }
-    }
-
-    fn handle_history_up(input: &HtmlTextAreaElement, history: &mut CommandHistory) {
-        if let Some(cmd) = history.previous() {
-            input.set_value(&cmd);
-            input.focus().unwrap();
-            let len = cmd.len() as u32;
-            let _ = input.set_selection_range(len, len);
-
-            let input_clone = input.clone();
-            let timeout = Closure::wrap(Box::new(move || {
-                let _ = input_clone.set_selection_range(len, len);
-            }) as Box<dyn FnMut()>);
-
-            window()
-                .unwrap()
-                .set_timeout_with_callback_and_timeout_and_arguments_0(
-                    timeout.as_ref().unchecked_ref(),
-                    0,
-                )
-                .unwrap();
-            timeout.forget();
-        }
-    }
-
-    fn handle_history_down(input: &HtmlTextAreaElement, history: &mut CommandHistory) {
-        if let Some(cmd) = history.next() {
-            input.set_value(&cmd);
-        } else {
-            input.set_value("");
-        }
+        // Note: Directory change handling for DOM-based prompt is removed
+        // since we're using canvas-based input now
     }
 
     fn build_prompt(processor: &crate::commands::CommandHandler, base_prompt: &str) -> String {
@@ -351,6 +277,8 @@ impl Terminal {
                         .await;
                 }
             }
+            // After showing completions, prepare for new input
+            term_clone_for_output.prepare_for_input();
         });
     }
 
@@ -370,24 +298,13 @@ impl Terminal {
                 });
                 let _ = JsFuture::from(promise).await;
             }
+            // After command output, prepare for new input
+            term_clone_for_output.prepare_for_input();
         });
     }
 
-    fn update_prompt_display(processor: &crate::commands::CommandHandler, base_prompt: &str) {
-        let doc = window().unwrap().document().unwrap();
-        if let Some(prompt_el) = doc.query_selector(".prompt-line .prompt").unwrap() {
-            let new_prompt = Self::build_prompt(processor, base_prompt);
-            prompt_el.set_text_content(Some(&new_prompt));
-        }
-    }
-
-    fn show_prompt(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc
-            .get_element_by_id("terminal-input")
-            .unwrap()
-            .dyn_into::<HtmlTextAreaElement>()
-            .unwrap();
-        input.focus().unwrap();
-    }
+    // Remove all the DOM-based methods since we're using canvas now
+    // create_prompt_input, setup_input_handlers, setup_auto_resize,
+    // setup_typing_animation, setup_key_handler, handle_history_up,
+    // handle_history_down, update_prompt_display, show_prompt
 }

@@ -15,27 +15,42 @@ pub enum LineType {
     Boot,
     Typing,
     Prompt,
+    Input, // Add Input type for current input line
 }
 
 // Store terminal lines for scrolling
 thread_local! {
     static TERMINAL_LINES: RefCell<VecDeque<TerminalLine>> = RefCell::new(VecDeque::new());
     static MAX_LINES: RefCell<usize> = RefCell::new(25);
+    static RESERVE_LINES: RefCell<usize> = RefCell::new(2); // Reserve space for input
 }
 
 pub fn trim_output(canvas_height: i32) {
     let line_height = 20.0;
-    let max_visible_lines = ((canvas_height as f64 - 40.0) / line_height) as usize;
+    let total_lines = ((canvas_height as f64 - 40.0) / line_height) as usize;
 
-    MAX_LINES.with(|max| {
-        *max.borrow_mut() = max_visible_lines;
+    // Reserve space for input line
+    RESERVE_LINES.with(|reserve| {
+        let reserve_count = *reserve.borrow();
+        let max_visible_lines = if total_lines > reserve_count {
+            total_lines - reserve_count
+        } else {
+            1
+        };
+
+        MAX_LINES.with(|max| {
+            *max.borrow_mut() = max_visible_lines;
+        });
     });
 
     TERMINAL_LINES.with(|lines| {
         let mut lines_mut = lines.borrow_mut();
-        while lines_mut.len() > max_visible_lines {
-            lines_mut.pop_front();
-        }
+        MAX_LINES.with(|max| {
+            let max_lines = *max.borrow();
+            while lines_mut.len() > max_lines {
+                lines_mut.pop_front();
+            }
+        });
     });
 }
 
@@ -86,4 +101,8 @@ pub fn should_autoscroll() -> bool {
             line_count >= max_lines
         })
     })
+}
+
+pub fn get_available_input_lines() -> usize {
+    RESERVE_LINES.with(|reserve| *reserve.borrow())
 }

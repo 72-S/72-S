@@ -224,6 +224,8 @@ impl Terminal {
             "gray" | "grey" => "#808080".to_string(),
             "boot-line" => "#ffffff".to_string(),
             "typing-line" => "#ffffff".to_string(),
+            "command" => "#8be9fd".to_string(),
+            "completion" => "#f8f8f2".to_string(),
             _ => {
                 if color.starts_with('#') || color.starts_with("rgb") {
                     color.to_string()
@@ -260,7 +262,8 @@ impl Terminal {
         let max_lines = (self.height as f64 / self.line_height) as i32;
         let current_line = ((self.y.get() - 20.0) / self.line_height) as i32;
 
-        if current_line >= max_lines - 1 {
+        if current_line >= max_lines - 3 {
+            // Leave space for input
             // Need to scroll - redraw all buffered lines
             self.redraw_all_lines();
         }
@@ -294,6 +297,9 @@ impl Terminal {
                 LineType::Prompt => {
                     self.draw_text(&line.text, current_y, line.color.as_deref());
                 }
+                LineType::Input => {
+                    self.draw_text(&line.text, current_y, line.color.as_deref());
+                }
             }
 
             self.advance_y();
@@ -321,6 +327,94 @@ impl Terminal {
         self.y.set(20.0);
 
         crate::input::autoscroll::clear_terminal_buffer();
+    }
+
+    // NEW METHODS FOR CANVAS-BASED INPUT
+
+    // Method to draw the current input line with prompt
+    pub fn draw_current_input_line(&self, input: &str) {
+        let current_y = self.y.get();
+        let prompt = self.get_current_prompt();
+
+        // Clear the current line first
+        self.clear_line_at_y(current_y);
+
+        // Draw prompt in cyan
+        self.context.save();
+        self.context.set_font("14px monospace");
+        self.context.set_text_baseline("top");
+
+        // Draw prompt part
+        self.set_fill_color("#00ffff"); // cyan
+        self.context.fill_text(&prompt, 10.0, current_y).unwrap();
+
+        // Draw input part
+        if !input.is_empty() {
+            let char_width = 8.4;
+            let prompt_width = prompt.chars().count() as f64 * char_width;
+            self.set_fill_color("#ffffff"); // white for input
+            self.context
+                .fill_text(input, 10.0 + prompt_width, current_y)
+                .unwrap();
+        }
+
+        self.context.restore();
+    }
+
+    // Method to draw cursor at current position
+    pub fn draw_cursor(&self, input: &str) {
+        let current_y = self.y.get();
+        let prompt = self.get_current_prompt();
+        let char_width = 8.4;
+        let prompt_width = prompt.chars().count() as f64 * char_width;
+        let input_width = input.chars().count() as f64 * char_width;
+        let cursor_x = 10.0 + prompt_width + input_width;
+
+        self.context.save();
+        self.set_fill_color("#00ff00"); // green cursor
+        self.context.fill_text("█", cursor_x, current_y).unwrap();
+        self.context.restore();
+    }
+
+    // Method to prepare for input (ensures prompt is visible)
+    pub fn prepare_for_input(&self) {
+        // Make sure we have space for input
+        let max_lines = (self.height as f64 / self.line_height) as i32;
+        let current_line = ((self.y.get() - 20.0) / self.line_height) as i32;
+
+        // If we're too close to the bottom, scroll
+        if current_line >= max_lines - 2 {
+            self.redraw_all_lines();
+            // Position for new input line
+            let lines_count = crate::input::autoscroll::get_line_count();
+            let new_y = 20.0 + (lines_count as f64 * self.line_height);
+            self.y.set(new_y);
+        }
+
+        // Draw initial prompt
+        self.draw_current_input_line("");
+        self.draw_cursor("");
+    }
+
+    // Method to update input display in real-time
+    pub fn update_input_display(&self, input: &str) {
+        self.draw_current_input_line(input);
+        self.draw_cursor(input);
+    }
+
+    // Method to finalize input (when Enter is pressed)
+    pub fn finalize_input(&self, input: &str) {
+        let prompt = self.get_current_prompt();
+        let full_line = format!("{}{}", prompt, input);
+
+        // Add the complete line to buffer
+        add_line_to_buffer(full_line, Some("white".to_string()), LineType::Normal);
+
+        // Move to next line
+        self.advance_y();
+
+        // Handle scrolling if needed
+        self.handle_scroll_if_needed();
     }
 
     // Add method to add a prompt line
