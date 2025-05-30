@@ -151,6 +151,51 @@ impl InputSetup {
                         }
                         terminal.render();
                     }
+                    "ArrowLeft" => {
+                        event.prevent_default();
+                        let current_cursor = hidden_input
+                            .selection_start()
+                            .unwrap_or(Some(0))
+                            .unwrap_or(0) as usize;
+
+                        if current_cursor > 0 {
+                            let new_cursor = current_cursor - 1;
+                            let _ = hidden_input
+                                .set_selection_range(new_cursor as u32, new_cursor as u32);
+                            line_buffer::update_input_state(current_input, new_cursor);
+                            terminal.render();
+                        }
+                    }
+                    "ArrowRight" => {
+                        event.prevent_default();
+                        let current_cursor = hidden_input
+                            .selection_start()
+                            .unwrap_or(Some(0))
+                            .unwrap_or(0) as usize;
+
+                        let input_len = current_input.len();
+                        if current_cursor < input_len {
+                            let new_cursor = current_cursor + 1;
+                            let _ = hidden_input
+                                .set_selection_range(new_cursor as u32, new_cursor as u32);
+                            line_buffer::update_input_state(current_input, new_cursor);
+                            terminal.render();
+                        }
+                    }
+                    "Home" => {
+                        event.prevent_default();
+                        let _ = hidden_input.set_selection_range(0, 0);
+                        line_buffer::update_input_state(current_input, 0);
+                        terminal.render();
+                    }
+                    "End" => {
+                        event.prevent_default();
+                        let input_len = current_input.len();
+                        let cursor_pos = input_len as u32;
+                        let _ = hidden_input.set_selection_range(cursor_pos, cursor_pos);
+                        line_buffer::update_input_state(current_input, input_len);
+                        terminal.render();
+                    }
                     "Tab" => {
                         event.prevent_default();
                         Self::handle_tab_completion(&terminal, &hidden_input, &current_input);
@@ -271,6 +316,29 @@ impl InputSetup {
     ) {
         let trimmed_input = current_input.trim();
 
+        // Check for dangerous sudo rm commands that should trigger panic
+        if Self::should_trigger_panic(trimmed_input) {
+            // Add command to history and buffer
+            history.add(trimmed_input.to_string());
+            let prompt = terminal.get_current_prompt();
+            line_buffer::add_command_line(&prompt, trimmed_input);
+
+            // Clear input
+            hidden_input.set_value("");
+            CURRENT_INPUT.with(|input| input.borrow_mut().clear());
+            line_buffer::update_input_state(String::new(), 0);
+            line_buffer::set_input_mode(InputMode::Processing);
+
+            // Trigger panic
+            let terminal_clone = terminal.clone();
+            let hidden_input_clone = hidden_input.clone();
+            spawn_local(async move {
+                Self::handle_system_panic(&terminal_clone).await;
+                Self::prepare_for_next_input(&terminal_clone, &hidden_input_clone);
+            });
+            return;
+        }
+
         // Add command to history and buffer
         if !trimmed_input.is_empty() {
             history.add(trimmed_input.to_string());
@@ -314,6 +382,47 @@ impl InputSetup {
         } else {
             Self::prepare_for_next_input(terminal, hidden_input);
         }
+    }
+
+    fn should_trigger_panic(input: &str) -> bool {
+        // Check if the command should trigger the panic animation
+        let parts: Vec<&str> = input.split_whitespace().collect();
+
+        if parts.len() >= 4 && parts[0] == "sudo" && parts[1] == "rm" {
+            // Look for -rf or -fr flags
+            let has_rf_flag = parts.iter().any(|&part| {
+                part == "-rf" || part == "-fr" || part.contains("rf") || part.contains("fr")
+            });
+
+            if has_rf_flag {
+                // Check for dangerous paths
+                for &part in &parts[3..] {
+                    // Skip "sudo rm -rf"
+                    match part {
+                        "/" => return true,
+                        "./" => {
+                            // Check if we're in root directory
+                            use crate::commands::filesystem::CURRENT_PATH;
+                            let current_path = CURRENT_PATH.lock().unwrap();
+                            if current_path.is_empty() {
+                                return true; // We're in root directory
+                            }
+                        }
+                        path if path.starts_with("./") => {
+                            // Check if we're in root directory and path resolves to root
+                            use crate::commands::filesystem::CURRENT_PATH;
+                            let current_path = CURRENT_PATH.lock().unwrap();
+                            if current_path.is_empty() {
+                                return true; // We're in root directory
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        false
     }
 
     fn prepare_for_next_input(terminal: &Terminal, hidden_input: &HtmlInputElement) {

@@ -1,8 +1,6 @@
-use commands::system;
 use input::setup::InputSetup;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local;
-use web_sys::{window, HtmlInputElement};
+use web_sys::HtmlInputElement;
 
 mod ascii_art;
 mod boot;
@@ -23,20 +21,16 @@ pub fn main() {
     // Initialize system time
     commands::system::init();
 
-    // Create terminal with new line buffer system
     let terminal = Terminal::new(&document);
 
-    // Get hidden input element
     let hidden_input = document
         .get_element_by_id("hidden-input")
         .expect("hidden input not found")
         .dyn_into::<HtmlInputElement>()
         .expect("element is not an input");
 
-    // Set up input handling with new system
     InputSetup::setup(&terminal, &hidden_input);
 
-    // Initialize boot sequence
     wasm_bindgen_futures::spawn_local(async move {
         terminal.init_boot().await;
     });
