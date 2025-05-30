@@ -1,4 +1,4 @@
-use crate::terminal::Terminal;
+use crate::terminal::{renderer::LineOptions, Terminal};
 
 pub async fn boot(term: &Terminal) {
     let boot_messages = vec![
@@ -51,16 +51,22 @@ pub async fn boot(term: &Terminal) {
         ("Starting Interface...", "[OK]", "green"),
     ];
 
-    for (msg, status, color) in boot_messages {
-        term.add_line_boot(msg, status, color).await;
+    for (msg, _status, color) in boot_messages {
+        term.add_line(
+            msg,
+            Some(LineOptions::new().with_boot_animation().with_color(color)),
+        )
+        .await;
         term.sleep(15).await;
     }
-
-    term.add_line("").await;
-    term.add_line_boot("Started objz Terminal", "[OK]", "green")
-        .await;
+    term.add_line("", None).await;
+    term.add_line(
+        "Started objz Terminal",
+        Some(LineOptions::new().with_boot_animation().with_color("green")),
+    )
+    .await;
     term.sleep(200).await;
-    term.add_line("").await;
+    term.add_line("", None).await;
 }
 
 pub async fn logo(term: &Terminal) {
@@ -77,7 +83,11 @@ pub async fn logo(term: &Terminal) {
     ];
 
     for line in logo_lines {
-        term.add_colored_line_typing(line, 10, "cyan").await;
+        term.add_line(
+            line,
+            Some(LineOptions::new().with_typing(10).with_color("cyan")),
+        )
+        .await;
         term.sleep(30).await;
     }
 }
@@ -96,14 +106,17 @@ pub async fn login(term: &Terminal) {
 
     for (msg, _status, color) in login_messages {
         if msg.is_empty() {
-            term.add_line("").await;
+            term.add_line("", None).await;
         } else if msg.contains("login:") {
-            term.add_line_typing(msg, 50).await;
+            term.add_line(msg, Some(LineOptions::new().with_typing(50)))
+                .await;
         } else if msg.contains("password:") {
             let full = format!("{}••••••••", msg);
-            term.add_line_typing(&full, 50).await;
+            term.add_line(&full, Some(LineOptions::new().with_typing(50)))
+                .await;
         } else {
-            term.add_line_colored(msg, color).await;
+            term.add_line(msg, Some(LineOptions::new().with_color(color)))
+                .await;
         }
         term.sleep(60).await;
     }

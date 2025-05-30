@@ -1,56 +1,71 @@
-use crate::utils::dom::{append_line, clear_output};
-use js_sys::Promise;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Element};
+use crate::terminal::{renderer::LineOptions, Terminal};
 
-pub async fn system_panic(element: &Element) {
-    clear_output(element);
+pub async fn system_panic(terminal: &Terminal) {
+    terminal.clear_output();
 
     let panic_lines = vec![
-        "⚠️  CRITICAL SYSTEM ERROR ⚠️",
-        "",
-        "Deleting root filesystem...",
-        "rm: removing /usr... ████████████░░░░ 75%",
-        "rm: removing /var... ██████████████░░ 87%",
-        "rm: removing /etc... ████████████████ 100%",
-        "",
-        "SYSTEM DESTROYED ☠️",
-        "",
-        "Just kidding! This is a just website, not your actual system.",
-        "Nice try though! 😉",
-        "",
-        "(Don't actually run 'sudo rm -rf /' on real systems!)",
-        "",
+        ("⚠️  CRITICAL SYSTEM ERROR ⚠️", Some("error"), None),
+        ("", None, None),
+        ("Deleting root filesystem...", Some("warning"), Some(100)),
+        (
+            "rm: removing /usr... ████████████░░░░ 75%",
+            Some("warning"),
+            Some(80),
+        ),
+        (
+            "rm: removing /var... ██████████████░░ 87%",
+            Some("warning"),
+            Some(80),
+        ),
+        (
+            "rm: removing /etc... ████████████████ 100%",
+            Some("warning"),
+            Some(80),
+        ),
+        ("", None, None),
+        ("SYSTEM DESTROYED ☠️", Some("error"), Some(150)),
+        ("", None, None),
+        (
+            "Just kidding! This is a just website, not your actual system.",
+            Some("success"),
+            Some(50),
+        ),
+        ("Nice try though! 😉", Some("success"), None),
+        ("", None, None),
+        (
+            "(Don't actually run 'sudo rm -rf /' on real systems!)",
+            Some("warning"),
+            None,
+        ),
+        ("", None, None),
     ];
 
-    for line in panic_lines {
-        let class = if line.contains("⚠️") || line.contains("☠️") {
-            Some("error")
-        } else if line.contains("████") {
-            Some("warning")
-        } else {
-            None
-        };
-        append_line(element, line, class);
+    for (line, color, typing_speed) in panic_lines {
+        let mut options = LineOptions::new();
 
-        let promise = Promise::new(&mut |resolve, _| {
-            let window = window().unwrap();
-            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 300);
-        });
-        let _ = JsFuture::from(promise).await;
+        if let Some(color_class) = color {
+            options = options.with_color(color_class);
+        }
+
+        if let Some(speed) = typing_speed {
+            options = options.with_typing(speed);
+        }
+
+        terminal.add_line(line, Some(options)).await;
+
+        terminal.sleep(300).await;
     }
 
-    let promise = Promise::new(&mut |resolve, _| {
-        let window = window().unwrap();
-        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 2000);
-    });
-    let _ = JsFuture::from(promise).await;
+    terminal.sleep(2000).await;
 
-    clear_output(element);
-    append_line(
-        element,
-        "System restored! Terminal is back online.",
-        Some("success"),
-    );
-    append_line(element, "", None);
+    terminal.clear_output();
+
+    terminal
+        .add_line(
+            "System restored! Terminal is back online.",
+            Some(LineOptions::new().with_color("success")),
+        )
+        .await;
+
+    terminal.add_line("", None).await;
 }

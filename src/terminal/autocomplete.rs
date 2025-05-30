@@ -104,7 +104,6 @@ pub enum CompletionResult {
     Multiple(Vec<String>),
 }
 
-// Add the helper function here
 pub fn find_common_prefix(strings: &[String]) -> Option<String> {
     if strings.is_empty() {
         return None;

@@ -24,8 +24,8 @@ pub fn main() {
 
     let term = Terminal::new(&document);
     spawn_local(async move {
-        term.start_intro().await;
-        term.start_shell().await;
+        term.init_boot().await;
+        term.init_shell();
     });
 }
 

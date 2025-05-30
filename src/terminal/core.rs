@@ -1,32 +1,36 @@
 use crate::commands::CommandHandler;
 use js_sys::Promise;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{window, Document, Element};
 
+#[derive(Clone)]
 pub struct Terminal {
-    pub output_element: Element,
-    pub command_processor: CommandHandler,
+    pub canvas: Element,
+    pub command_handler: CommandHandler,
     pub base_prompt: String,
     pub height: i32,
 }
 
 impl Terminal {
     pub fn new(document: &Document) -> Self {
-        let output_element = document.get_element_by_id("terminal-output").unwrap();
-        let command_processor = CommandHandler::new();
+        let canvas = document
+            .get_element_by_id("terminal")
+            .expect("canvas not found");
+        let command_handler = CommandHandler::new();
         let base_prompt = "anonym@objz".to_string();
         let height = 760;
 
         Self {
-            output_element,
-            command_processor,
+            canvas,
+            command_handler,
             base_prompt,
             height,
         }
     }
 
     pub fn get_current_prompt(&self) -> String {
-        let cwd = self.command_processor.get_current_directory();
+        let cwd = self.command_handler.get_current_directory();
         let display_path = if cwd == "/home/objz" {
             "~".to_string()
         } else if cwd.starts_with("/home/objz/") {
@@ -38,19 +42,20 @@ impl Terminal {
         format!("{}:{}$ ", self.base_prompt, display_path)
     }
 
-    pub async fn start_intro(&self) {
-        self.run_boot_sequence().await;
-    }
-
-    pub async fn start_shell(&self) {
-        self.setup_input_system();
-    }
-
     pub async fn sleep(&self, ms: i32) {
-        let promise = Promise::new(&mut |resolve, _| {
-            let w = window().unwrap();
-            let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms);
+        let promise = Promise::new(&mut |resolve, _reject| {
+            let window = window().unwrap();
+            let closure = Closure::once_into_js(move || {
+                resolve.call0(&JsValue::UNDEFINED).unwrap();
+            });
+            window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    closure.as_ref().unchecked_ref(),
+                    ms,
+                )
+                .unwrap();
         });
+
         let _ = JsFuture::from(promise).await;
     }
 }
