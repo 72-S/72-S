@@ -35,31 +35,47 @@ impl BufferLine {
         }
     }
 
-    /// Calculate wrapped lines based on terminal width
+    /// Calculate wrapped lines based on terminal width (Unicode-safe)
     pub fn calculate_wrapping(&mut self, max_width: usize) {
         self.wrapped_lines.clear();
 
-        if self.content.len() <= max_width {
+        // Use char count instead of byte count for Unicode safety
+        let chars: Vec<char> = self.content.chars().collect();
+
+        if chars.len() <= max_width {
             self.wrapped_lines.push(self.content.clone());
             return;
         }
 
-        let mut remaining = self.content.as_str();
-        while !remaining.is_empty() {
-            if remaining.len() <= max_width {
-                self.wrapped_lines.push(remaining.to_string());
+        let mut start = 0;
+        while start < chars.len() {
+            let end = (start + max_width).min(chars.len());
+
+            if end >= chars.len() {
+                // Last chunk
+                let chunk: String = chars[start..].iter().collect();
+                self.wrapped_lines.push(chunk);
                 break;
             }
 
-            // Find a good break point (prefer spaces)
-            let mut break_point = max_width;
-            if let Some(space_pos) = remaining[..max_width].rfind(' ') {
-                break_point = space_pos;
+            // Find a good break point (prefer spaces) within character boundaries
+            let mut break_point = end;
+            for i in (start..end).rev() {
+                if chars[i] == ' ' {
+                    break_point = i;
+                    break;
+                }
             }
 
-            self.wrapped_lines
-                .push(remaining[..break_point].to_string());
-            remaining = &remaining[break_point..].trim_start();
+            let chunk: String = chars[start..break_point].iter().collect();
+            self.wrapped_lines.push(chunk);
+
+            // Skip the space if we broke on one
+            start = if break_point < end && chars[break_point] == ' ' {
+                break_point + 1
+            } else {
+                break_point
+            };
         }
     }
 
@@ -127,17 +143,19 @@ impl LineBuffer {
         *self.terminal_width.borrow_mut() = width;
         *self.terminal_height.borrow_mut() = height;
 
-        // Recalculate wrapping for all lines
+        // Recalculate wrapping for all lines - but avoid multiple borrows
+        let width_copy = width;
         let mut buffer = self.buffer.borrow_mut();
         for line in buffer.iter_mut() {
-            line.calculate_wrapping(width);
+            line.calculate_wrapping(width_copy);
         }
     }
 
     /// Add a new line to the buffer
     pub fn add_line(&self, content: String, line_type: LineType, color: Option<String>) {
         let mut line = BufferLine::new(content, line_type, color);
-        line.calculate_wrapping(*self.terminal_width.borrow());
+        let width = *self.terminal_width.borrow();
+        line.calculate_wrapping(width);
 
         let mut buffer = self.buffer.borrow_mut();
         buffer.push_back(line);
@@ -199,7 +217,7 @@ impl LineBuffer {
     pub fn update_input(&self, input: String, cursor_pos: usize) {
         let mut state = self.state.borrow_mut();
         state.current_input = input;
-        state.cursor_position = cursor_pos.min(state.current_input.len());
+        state.cursor_position = cursor_pos.min(state.current_input.chars().count());
     }
 
     /// Set the current prompt
