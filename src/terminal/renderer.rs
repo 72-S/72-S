@@ -85,6 +85,9 @@ impl TerminalRenderer {
     }
 
     async fn boot(&self, task: &str, opts: &LineOptions) {
+        // Disable input during boot animation to prevent prompt from showing
+        line_buffer::set_input_mode(InputMode::Disabled);
+
         let current_y = self.y.get();
 
         let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -107,6 +110,9 @@ impl TerminalRenderer {
     }
 
     async fn typing(&self, text: &str, speed: i32, opts: &LineOptions) {
+        // Disable input during typing animation to prevent prompt from showing
+        line_buffer::set_input_mode(InputMode::Disabled);
+
         let current_y = self.y.get();
         let mut displayed = String::new();
 
@@ -175,7 +181,7 @@ impl TerminalRenderer {
         // Update y position for legacy compatibility
         self.y.set(y_offset);
 
-        // Render input line if in normal mode
+        // Only render input line if in normal mode (not during animations)
         if state.input_mode == InputMode::Normal {
             self.render_input_line(&state, y_offset);
         }
