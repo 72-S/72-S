@@ -327,6 +327,9 @@ impl Terminal {
         self.y.set(20.0);
 
         crate::input::autoscroll::clear_terminal_buffer();
+
+        // After clearing, immediately prepare for input
+        self.prepare_for_input();
     }
 
     // NEW METHODS FOR CANVAS-BASED INPUT
@@ -402,13 +405,22 @@ impl Terminal {
         self.draw_cursor(input);
     }
 
-    // Method to finalize input (when Enter is pressed)
+    // Method to finalize input (when Enter is pressed) - FIXED
     pub fn finalize_input(&self, input: &str) {
         let prompt = self.get_current_prompt();
         let full_line = format!("{}{}", prompt, input);
 
-        // Add the complete line to buffer
-        add_line_to_buffer(full_line, Some("white".to_string()), LineType::Normal);
+        // Clear the current input line display
+        let current_y = self.y.get();
+        self.clear_line_at_y(current_y);
+
+        // Add the complete line to buffer and draw it properly
+        add_line_to_buffer(
+            full_line.clone(),
+            Some("white".to_string()),
+            LineType::Normal,
+        );
+        self.draw_text(&full_line, current_y, Some("white"));
 
         // Move to next line
         self.advance_y();
