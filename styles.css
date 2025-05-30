@@ -1,0 +1,150 @@
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  color: #e6e6e6;
+  font-family:
+    "JetBrains Mono", "Fira Code", "Source Code Pro", "Consolas", monospace;
+  overflow: hidden;
+}
+
+/* 3D Scene Styles */
+#scene-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+}
+
+/* Loading Screen */
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: #8be9fd;
+  font-family: "JetBrains Mono", monospace;
+  transition: opacity 0.5s ease;
+}
+
+#loading.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-text {
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
+}
+
+.loading-bar {
+  background: #333;
+  border-radius: 2px;
+  overflow: hidden;
+  width: 300px;
+  height: 4px;
+  margin-top: 20px;
+}
+
+.loading-progress {
+  background: linear-gradient(90deg, #8be9fd, #50fa7b);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
+  height: 100%;
+  width: 0%;
+}
+
+/* Terminal Canvas Styles */
+#terminal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* width: 800px; */
+  /* height: 600px; */
+  z-index: 20;
+  visibility: visible;
+  background: #000000;
+
+  /* Debug red outline */
+  border: 3px solid #ff0000;
+  box-shadow:
+    0 0 10px rgba(255, 0, 0, 0.5),
+    0 0 20px rgba(139, 233, 253, 0.3);
+
+  /* Canvas specific styles */
+  display: block;
+  border-radius: 4px;
+
+  /* Make it focusable */
+  outline: none;
+
+  /* Ensure crisp pixel rendering */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* When terminal is focused */
+#terminal:focus {
+  border-color: #ff0000;
+  box-shadow:
+    0 0 15px rgba(255, 0, 0, 0.8),
+    0 0 30px rgba(139, 233, 253, 0.5);
+}
+
+/* Terminal in texture mode (when being used as 3D texture) */
+#terminal.texture-mode {
+  visibility: hidden;
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  z-index: -1;
+}
+
+/* Debug info overlay */
+.debug-info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #00ff00;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 12px;
+  border: 1px solid #00ff00;
+  z-index: 1000;
+  border-radius: 4px;
+}
+
+/* Media queries for responsive design */
+@media (max-width: 1024px) {
+  #terminal {
+    width: 90vw;
+    height: 70vh;
+    max-width: 800px;
+    max-height: 600px;
+  }
+}
+
+@media (max-width: 768px) {
+  #terminal {
+    width: 95vw;
+    height: 75vh;
+    font-size: 14px;
+  }
+}
