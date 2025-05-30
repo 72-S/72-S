@@ -12,6 +12,7 @@ export class Terminal3D {
     this.screenMesh = null;
     this.terminalTexture = null;
     this.terminalCanvas = null; // Add reference to terminal canvas
+    this.hiddenInput = null; // Add reference to hidden input element
     this.isTerminalFocused = false;
     this.animationId = null;
     this.init();
@@ -163,9 +164,16 @@ export class Terminal3D {
   async setupTerminalTexture() {
     // Get the terminal canvas directly (created by your Rust code)
     this.terminalCanvas = document.getElementById("terminal");
+    // Get the hidden input element (used by Rust for input handling)
+    this.hiddenInput = document.getElementById("hidden-input");
 
     if (!this.terminalCanvas) {
       console.error("Terminal canvas not found!");
+      return;
+    }
+
+    if (!this.hiddenInput) {
+      console.error("Hidden input element not found!");
       return;
     }
 
@@ -257,12 +265,12 @@ export class Terminal3D {
             clickedObject.name.toLowerCase().includes("screen"));
 
         if (isScreen) {
-          console.log("Screen clicked - focusing terminal");
+          console.log("Screen clicked - focusing terminal input");
           this.isTerminalFocused = true;
 
-          // Focus the terminal canvas for keyboard input
-          if (this.terminalCanvas) {
-            this.terminalCanvas.focus();
+          // Focus the hidden input element (this is what handles the actual input)
+          if (this.hiddenInput) {
+            this.hiddenInput.focus();
           }
 
           // Trigger any terminal focus events if your Rust code needs them
@@ -272,8 +280,9 @@ export class Terminal3D {
           console.log("Clicked on non-screen object - removing focus");
           this.isTerminalFocused = false;
 
-          if (this.terminalCanvas) {
-            this.terminalCanvas.blur();
+          // Blur the hidden input element
+          if (this.hiddenInput) {
+            this.hiddenInput.blur();
           }
 
           const blurEvent = new CustomEvent("terminalBlur");
@@ -283,8 +292,9 @@ export class Terminal3D {
         console.log("Clicked on empty space - removing focus");
         this.isTerminalFocused = false;
 
-        if (this.terminalCanvas) {
-          this.terminalCanvas.blur();
+        // Blur the hidden input element
+        if (this.hiddenInput) {
+          this.hiddenInput.blur();
         }
 
         const blurEvent = new CustomEvent("terminalBlur");
@@ -296,13 +306,15 @@ export class Terminal3D {
     document.addEventListener("click", (e) => {
       if (
         !e.target.closest("#scene-container") &&
-        !e.target.closest("#terminal")
+        !e.target.closest("#terminal") &&
+        !e.target.closest("#hidden-input")
       ) {
         console.log("Clicked outside - removing focus");
         this.isTerminalFocused = false;
 
-        if (this.terminalCanvas) {
-          this.terminalCanvas.blur();
+        // Blur the hidden input element
+        if (this.hiddenInput) {
+          this.hiddenInput.blur();
         }
 
         const blurEvent = new CustomEvent("terminalBlur");
@@ -310,28 +322,20 @@ export class Terminal3D {
       }
     });
 
-    // Forward keyboard events to terminal when focused
-    document.addEventListener("keydown", (e) => {
-      if (this.isTerminalFocused && this.terminalCanvas) {
-        // Create a new keyboard event and dispatch it to the canvas
-        const terminalKeyEvent = new KeyboardEvent("keydown", {
-          key: e.key,
-          code: e.code,
-          ctrlKey: e.ctrlKey,
-          shiftKey: e.shiftKey,
-          altKey: e.altKey,
-          metaKey: e.metaKey,
-        });
+    // Listen for custom focus/blur events from Rust code if needed
+    window.addEventListener("terminalFocus", () => {
+      console.log("Terminal focus event received");
+      this.isTerminalFocused = true;
+      if (this.hiddenInput) {
+        this.hiddenInput.focus();
+      }
+    });
 
-        this.terminalCanvas.dispatchEvent(terminalKeyEvent);
-
-        // Prevent default if the terminal should handle this key
-        if (
-          !e.ctrlKey ||
-          (e.ctrlKey && ["c", "v", "l"].includes(e.key.toLowerCase()))
-        ) {
-          e.preventDefault();
-        }
+    window.addEventListener("terminalBlur", () => {
+      console.log("Terminal blur event received");
+      this.isTerminalFocused = false;
+      if (this.hiddenInput) {
+        this.hiddenInput.blur();
       }
     });
   }
