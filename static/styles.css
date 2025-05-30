@@ -74,32 +74,27 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  /* width: 800px; */
-  /* height: 600px; */
   z-index: 20;
-  visibility: visible;
+  visibility: hidden;
   background: #000000;
 
   /* Debug red outline */
-  border: 3px solid #ff0000;
-  box-shadow:
-    0 0 10px rgba(255, 0, 0, 0.5),
-    0 0 20px rgba(139, 233, 253, 0.3);
+  /* border: 3px solid #ff0000; */
+  /* box-shadow: */
+  /* 0 0 10px rgba(255, 0, 0, 0.5), */
+  /* 0 0 20px rgba(139, 233, 253, 0.3); */
 
   /* Canvas specific styles */
-  display: block;
+  display: none;
   border-radius: 4px;
 
-  /* Make it focusable */
   outline: none;
 
-  /* Ensure crisp pixel rendering */
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
 
-/* When terminal is focused */
 #terminal:focus {
   border-color: #ff0000;
   box-shadow:
@@ -107,7 +102,6 @@ body {
     0 0 30px rgba(139, 233, 253, 0.5);
 }
 
-/* Terminal in texture mode (when being used as 3D texture) */
 #terminal.texture-mode {
   visibility: hidden;
   position: fixed;
@@ -116,7 +110,6 @@ body {
   z-index: -1;
 }
 
-/* Debug info overlay */
 .debug-info {
   position: fixed;
   top: 10px;
@@ -131,7 +124,6 @@ body {
   border-radius: 4px;
 }
 
-/* Media queries for responsive design */
 @media (max-width: 1024px) {
   #terminal {
     width: 90vw;
