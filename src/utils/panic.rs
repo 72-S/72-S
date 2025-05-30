@@ -1,71 +1,89 @@
-use crate::terminal::{renderer::LineOptions, Terminal};
+use crate::terminal::line_buffer::InputMode;
+use crate::terminal::{line_buffer, Terminal};
+use crate::utils::panic::line_buffer::LineType;
 
-pub async fn system_panic(terminal: &Terminal) {
-    terminal.clear_output();
+pub async fn trigger(terminal: &Terminal) {
+    line_buffer::clear_buffer();
+    line_buffer::set_input_mode(InputMode::Disabled);
 
     let panic_lines = vec![
-        ("⚠️  CRITICAL SYSTEM ERROR ⚠️", Some("error"), None),
-        ("", None, None),
-        ("Deleting root filesystem...", Some("warning"), Some(100)),
-        (
-            "rm: removing /usr... ████████████░░░░ 75%",
-            Some("warning"),
-            Some(80),
-        ),
-        (
-            "rm: removing /var... ██████████████░░ 87%",
-            Some("warning"),
-            Some(80),
-        ),
+        ("⚠️  CRITICAL SYSTEM ERROR ⚠️", Some("error")),
+        ("", None),
+        ("Deleting root filesystem...", Some("warning")),
+        ("rm: removing /usr... ████████████░░░░ 75%", Some("warning")),
+        ("rm: removing /var... ██████████████░░ 87%", Some("warning")),
         (
             "rm: removing /etc... ████████████████ 100%",
             Some("warning"),
-            Some(80),
         ),
-        ("", None, None),
-        ("SYSTEM DESTROYED ☠️", Some("error"), Some(150)),
-        ("", None, None),
+        ("", None),
+        ("SYSTEM DESTROYED ☠️", Some("error")),
+        ("", None),
         (
             "Just kidding! This is a just website, not your actual system.",
             Some("success"),
-            Some(50),
         ),
-        ("Nice try though! 😉", Some("success"), None),
-        ("", None, None),
+        ("Nice try though! 😉", Some("success")),
+        ("", None),
         (
             "(Don't actually run 'sudo rm -rf /' on real systems!)",
             Some("warning"),
-            None,
         ),
-        ("", None, None),
     ];
 
-    for (line, color, typing_speed) in panic_lines {
-        let mut options = LineOptions::new();
-
-        if let Some(color_class) = color {
-            options = options.with_color(color_class);
-        }
-
-        if let Some(speed) = typing_speed {
-            options = options.with_typing(speed);
-        }
-
-        terminal.add_line(line, Some(options)).await;
-
-        terminal.sleep(300).await;
+    for (line, color) in panic_lines {
+        line_buffer::add_line(
+            line.to_string(),
+            LineType::System,
+            color.map(|s| s.to_string()),
+        );
+        terminal.render();
+        terminal.sleep(500).await;
     }
 
     terminal.sleep(2000).await;
 
-    terminal.clear_output();
+    line_buffer::clear_buffer();
+    line_buffer::add_line(
+        "System restored! Terminal is back online.".to_string(),
+        LineType::System,
+        Some("success".to_string()),
+    );
+    line_buffer::add_line("".to_string(), LineType::Normal, None);
+    terminal.render();
+}
 
-    terminal
-        .add_line(
-            "System restored! Terminal is back online.",
-            Some(LineOptions::new().with_color("success")),
-        )
-        .await;
+pub fn should_panic(input: &str) -> bool {
+    let parts: Vec<&str> = input.split_whitespace().collect();
 
-    terminal.add_line("", None).await;
+    if parts.len() >= 4 && parts[0] == "sudo" && parts[1] == "rm" {
+        let has_rf_flag = parts.iter().any(|&part| {
+            part == "-rf" || part == "-fr" || part.contains("rf") || part.contains("fr")
+        });
+
+        if has_rf_flag {
+            for &part in &parts[3..] {
+                match part {
+                    "/" => return true,
+                    "./" => {
+                        use crate::commands::filesystem::CURRENT_PATH;
+                        let current_path = CURRENT_PATH.lock().unwrap();
+                        if current_path.is_empty() {
+                            return true;
+                        }
+                    }
+                    path if path.starts_with("./") => {
+                        use crate::commands::filesystem::CURRENT_PATH;
+                        let current_path = CURRENT_PATH.lock().unwrap();
+                        if current_path.is_empty() {
+                            return true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    false
 }
