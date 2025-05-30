@@ -8,7 +8,6 @@ pub async fn boot(term: &Terminal) {
         "Probing hardware...",
         "Detected storage device: /dev/nvme0n1",
         "Detected storage device: /dev/sda",
-        "Started udev Kernel Device Manager.",
         "Activating swap on /dev/sda2...",
         "Mounting root filesystem...",
         "Checking file system on /dev/sda1...",
@@ -20,14 +19,10 @@ pub async fn boot(term: &Terminal) {
         "Starting systemd-sysctl.service...",
         "Starting Load Kernel Modules...",
         "Loading kernel modules: i915 ext4 fuse...",
-        "Started Rule-based Manager for Device Events and Filesystems.",
         "Starting Network Manager...",
-        "Started Network Time Synchronization.",
         "Starting Login Service (systemd-logind)...",
         "Starting Authorization Manager (polkitd)...",
         "Starting User Manager for UID 1000...",
-        "Started Getty on tty1.",
-        "Reached target Multi-User System.",
         "Starting Interface...",
     ];
 
@@ -36,14 +31,7 @@ pub async fn boot(term: &Terminal) {
             .await;
         term.sleep(15).await;
     }
-    term.add_line("", None).await;
-    term.add_line(
-        "Started objz Terminal",
-        Some(LineOptions::new().with_boot_animation()),
-    )
-    .await;
     term.sleep(200).await;
-    term.add_line("", None).await;
 }
 
 pub async fn logo(term: &Terminal) {
@@ -73,7 +61,7 @@ pub async fn login(term: &Terminal) {
     let login_messages = vec![
         ("Arch Linux 6.6.32-1-lts (tty1)", "", "green"),
         ("", "", ""),
-        ("login: anonym", "", "white"),
+        ("login: objz", "", "white"),
         ("password: ", "", "white"),
         ("", "", ""),
         ("Last login: Mon May 27 13:59:36 2025", "", "white"),
