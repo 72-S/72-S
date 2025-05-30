@@ -7,6 +7,7 @@ pub struct Terminal {
     pub output_element: Element,
     pub command_processor: CommandHandler,
     pub base_prompt: String,
+    pub height: i32,
 }
 
 impl Terminal {
@@ -14,11 +15,13 @@ impl Terminal {
         let output_element = document.get_element_by_id("terminal-output").unwrap();
         let command_processor = CommandHandler::new();
         let base_prompt = "anonym@objz".to_string();
+        let height = 760;
 
         Self {
             output_element,
             command_processor,
             base_prompt,
+            height,
         }
     }
 

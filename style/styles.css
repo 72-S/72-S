@@ -10,9 +10,6 @@ body {
   color: #e6e6e6;
   font-family:
     "JetBrains Mono", "Fira Code", "Source Code Pro", "Consolas", monospace;
-  font-size: 14px;
-  line-height: 1.4;
-  height: 100vh;
   overflow: hidden;
 }
 
@@ -23,8 +20,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 1;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  z-index: 10;
 }
 
 /* Loading Screen */
@@ -52,102 +48,145 @@ body {
 
 .loading-text {
   font-size: 18px;
-  margin-bottom: 20px;
   text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
 }
+
 .loading-bar {
-  width: 300px;
-  height: 4px;
   background: #333;
   border-radius: 2px;
   overflow: hidden;
+  width: 300px;
+  height: 4px;
+  margin-top: 20px;
 }
 
 .loading-progress {
-  height: 100%;
   background: linear-gradient(90deg, #8be9fd, #50fa7b);
-  width: 0%;
   transition: width 0.3s ease;
   box-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
+  height: 100%;
+  width: 0%;
 }
+
+/* Terminal Styles */
 #terminal {
-  position: fixed;
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1; /* Lower than scene-container */
-  width: 800px;
-  height: 600px;
+  width: 1024px;
+  height: 768px;
+  z-index: 1;
   visibility: hidden;
   background: #0a0a0a;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
+  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
   display: flex;
   flex-direction: column;
-  /* Remove pointer-events: none */
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  border: 2px solid #333;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 20px;
 }
 
 #terminal.texture-mode {
   visibility: visible;
-  opacity: 0;
+  opacity: 1;
+  z-index: 1;
+  /* Position off-screen for html2canvas but keep it accessible */
   position: fixed;
+  top: -10000px;
+  left: -10000px;
+  transform: none;
+}
+
+/* Terminal display copy for html2canvas */
+#terminal-display {
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 1024px;
+  height: 768px;
   z-index: 1;
-  /* Remove pointer-events: none */
+  background: #0a0a0a;
+  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  border: 2px solid #333;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 20px;
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Remove terminal header completely */
+#terminal-header {
+  display: none;
 }
 
 #terminal-body {
   flex: 1;
-  padding: 16px;
   overflow-y: auto;
-  background: #0a0a0a;
-  border-radius: 0;
+  background: transparent;
   scroll-behavior: smooth;
-  /* Remove pointer-events: none */
+  max-height: 100%;
 }
 
-/* Make scene-container have higher z-index */
-#scene-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 10; /* Higher than terminal */
+/* Enable scrollbar interactions */
+#terminal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+#terminal-body::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+#terminal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #333 0%, #555 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
+  transition: all 0.3s ease;
+}
+
+#terminal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #444 0%, #666 100%);
+  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
 }
 
 #terminal-output {
   white-space: pre-wrap;
   word-wrap: break-word;
-  margin-bottom: 8px;
   color: #e6e6e6;
-  /* Remove pointer-events: none */
+  font-family: "JetBrains Mono", monospace;
+  font-size: 16px;
+  line-height: 1.4;
 }
 
+/* Prompt Styling */
 .prompt-line {
   display: flex;
   align-items: flex-start;
-  margin-top: 8px;
   flex-wrap: wrap;
-  /* Remove pointer-events: none */
+  margin: 2px 0;
 }
 
 .prompt {
   color: #8be9fd;
-  margin-right: 8px;
   text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
   font-weight: bold;
   transition: all 0.3s ease;
   white-space: nowrap;
-  /* Remove pointer-events: none */
+  font-family: "JetBrains Mono", monospace;
 }
 
 /* Input container and textarea interactions */
 .input-container {
-  width: 100%;
+  flex: 1;
   pointer-events: auto;
 }
 
@@ -159,9 +198,21 @@ body {
   outline: none;
   resize: none;
   width: 100%;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 16px;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+
+.terminal-input-field:focus {
+  caret-color: #8be9fd;
+  animation: caretBlink 1s infinite;
+}
+
+/* Visual feedback when terminal is focused */
+#terminal:has(.terminal-input-field:focus) {
+  box-shadow: 0 0 30px rgba(139, 233, 253, 0.6);
+  border-color: #8be9fd;
 }
 
 /* Animations */
@@ -179,7 +230,7 @@ body {
 @keyframes caretBlink {
   0%,
   50% {
-    caret-color: #ffffff;
+    caret-color: #8be9fd;
   }
   51%,
   100% {
@@ -199,29 +250,57 @@ body {
   }
 }
 
+/* Command styling */
+.command {
+  color: #8be9fd;
+  font-family: "JetBrains Mono", monospace;
+}
+.error {
+  color: #ff5555;
+  font-family: "JetBrains Mono", monospace;
+}
+.success {
+  color: #50fa7b;
+  font-family: "JetBrains Mono", monospace;
+}
+.warning {
+  color: #ffb86c;
+  font-family: "JetBrains Mono", monospace;
+}
+.info {
+  color: #bd93f9;
+  font-family: "JetBrains Mono", monospace;
+}
+.completion {
+  color: #f1fa8c;
+  font-family: "JetBrains Mono", monospace;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   body {
     font-size: 12px;
   }
-
-  #terminal {
-    width: 98vw;
-    height: 98vh;
-    margin: 1vh auto;
+  #terminal,
+  #terminal-display {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    height: 70vh;
   }
-
   #terminal-body {
-    padding: 12px;
   }
-
   .prompt-line {
     flex-direction: column;
     align-items: flex-start;
   }
-
   .input-container {
-    width: 100%;
-    margin-top: 4px;
+    pointer-events: auto;
   }
+}
+
+/* Ensure proper layering */
+#scene-container canvas {
+  display: block;
 }

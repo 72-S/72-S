@@ -28,6 +28,7 @@ export class Terminal3D {
       this.setupEventListeners();
       this.updateLoadingProgress(100);
       this.hideLoading();
+      this.showTerminal();
       this.animate();
     } catch (e) {
       console.error("3D init failed:", e);
@@ -61,6 +62,13 @@ export class Terminal3D {
     }, 2000);
   }
 
+  showTerminal() {
+    const terminal = document.getElementById("terminal");
+    if (terminal) {
+      terminal.style.visibility = "visible";
+    }
+  }
+
   async setupScene() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a0a);
@@ -80,7 +88,6 @@ export class Terminal3D {
     this.controls.enableDamping = true;
     this.controls.target.set(0, 1, 0);
 
-    // lighting
     this.scene.add(new THREE.HemisphereLight(0x8be9fd, 0x444444, 0.3));
   }
 
@@ -96,7 +103,6 @@ export class Terminal3D {
           this.pcModel.scale.setScalar(1);
           this.pcModel.position.set(0, 0, 0);
 
-          // enable shadows & find screen
           this.pcModel.traverse((c) => {
             if (c.isMesh) {
               c.castShadow = c.receiveShadow = true;
@@ -106,7 +112,8 @@ export class Terminal3D {
                 n.includes("screen") ||
                 n.includes("monitor") ||
                 m.includes("screen") ||
-                m.includes("monitor")
+                m.includes("monitor") ||
+                c.name === "Plane008_Material002_0"
               ) {
                 this.screenMesh = c;
                 console.log("Found screen:", c.name);
@@ -124,8 +131,7 @@ export class Terminal3D {
           this.updateLoadingProgress(pct);
         },
         (err) => {
-          console.warn("Model load failed, using fallback:", err);
-          this.createFallbackPC();
+          console.warn("Model load failed:", err);
           resolve();
         },
       );
@@ -153,36 +159,6 @@ export class Terminal3D {
     }
   }
 
-  createFallbackPC() {
-    // Create a simple fallback PC model if GLB fails to load
-    const group = new THREE.Group();
-
-    // Monitor
-    const monitorGeometry = new THREE.BoxGeometry(2, 1.2, 0.1);
-    const monitorMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
-    const monitor = new THREE.Mesh(monitorGeometry, monitorMaterial);
-    monitor.position.set(0, 1, 0);
-    group.add(monitor);
-
-    // Screen (this will be our texture target)
-    const screenGeometry = new THREE.PlaneGeometry(1.8, 1);
-    const screenMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const screen = new THREE.Mesh(screenGeometry, screenMaterial);
-    screen.position.set(0, 1, 0.06);
-    this.screenMesh = screen;
-    group.add(screen);
-
-    // Base
-    const baseGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8);
-    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x444444 });
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.position.set(0, 0.05, 0);
-    group.add(base);
-
-    this.pcModel = group;
-    this.scene.add(this.pcModel);
-  }
-
   async setupTerminalTexture() {
     const t = document.getElementById("terminal");
     if (t) t.classList.add("texture-mode");
@@ -191,6 +167,12 @@ export class Terminal3D {
     const canvas = document.createElement("canvas");
     canvas.width = 1024;
     canvas.height = 768;
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.zIndex = "1000";
+    canvas.style.border = "1px solid red";
+    document.body.appendChild(canvas);
     const ctx = canvas.getContext("2d");
     this.terminalTexture = new THREE.CanvasTexture(canvas);
     this.terminalTexture.minFilter = THREE.LinearFilter;
@@ -205,6 +187,9 @@ export class Terminal3D {
       });
     }
 
+    this.terminalTexture.offset.y = 0.2;
+    this.terminalTexture.repeat.y = 0.9;
+
     this.updateTerminalTexture = () => {
       try {
         const terminalBody = document.getElementById("terminal-body");
@@ -212,34 +197,35 @@ export class Terminal3D {
 
         if (!terminalBody || !terminalOutput) return;
 
-        // Clear canvas
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Get scroll info
         const scrollTop = terminalBody.scrollTop;
         const bodyHeight = terminalBody.clientHeight;
-        const lineHeight = 20;
 
-        // Calculate visible lines
+        const lineHeight = parseInt(ctx.font.match(/\d+/)[0], 10) + 4;
+
         const startLine = Math.floor(scrollTop / lineHeight);
         const visibleLines = Math.ceil(bodyHeight / lineHeight) + 2; // +2 buffer
 
-        // Get all terminal lines
         const outputDivs = Array.from(terminalOutput.children);
 
-        // Set font
         ctx.font = "16px 'JetBrains Mono', monospace";
+
+        ctx.strokeStyle = "#ff0000";
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
         let y = 20;
         let lineIndex = 0;
 
-        // Draw visible content
+        if (y + lineHeight > canvas.height) {
+          y = canvas.height - lineHeight - 10; // give a margin
+        }
+
         for (let i = 0; i < outputDivs.length; i++) {
           const div = outputDivs[i];
           const text = div.textContent || "";
 
-          // Split long lines
           const maxChars = Math.floor((canvas.width - 40) / 10);
           const lines = [];
           if (text.length > maxChars) {
@@ -250,13 +236,11 @@ export class Terminal3D {
             lines.push(text);
           }
 
-          // Draw lines that are in visible range
           for (const line of lines) {
             if (
               lineIndex >= startLine &&
               lineIndex < startLine + visibleLines
             ) {
-              // Set color based on CSS classes
               if (div.classList.contains("command")) {
                 ctx.fillStyle = "#8be9fd";
               } else if (div.classList.contains("error")) {
@@ -276,9 +260,17 @@ export class Terminal3D {
             }
             lineIndex++;
           }
+
+          console.log({
+            scrollTop,
+            clientHeight: terminalBody.clientHeight,
+            scrollHeight: terminalBody.scrollHeight,
+            outputLines: outputDivs.length,
+            startLine,
+            visibleLines,
+          });
         }
 
-        // Draw current input line
         const terminalInput = document.getElementById("terminal-input");
         if (terminalInput) {
           const promptElements = document.querySelectorAll(".prompt");
@@ -288,16 +280,14 @@ export class Terminal3D {
             : "objz:~$ ";
           const inputValue = terminalInput.value;
 
-          // Only draw if this line would be visible
           if (lineIndex >= startLine && lineIndex < startLine + visibleLines) {
-            ctx.fillStyle = "#8be9fd"; // Prompt color
+            ctx.fillStyle = "#8be9fd";
             ctx.fillText(promptText, 20, y);
 
-            ctx.fillStyle = "#f8f8f2"; // Input color
+            ctx.fillStyle = "#f8f8f2";
             const promptWidth = ctx.measureText(promptText).width;
             ctx.fillText(inputValue, 20 + promptWidth, y);
 
-            // Draw cursor if focused
             if (document.activeElement === terminalInput) {
               const inputWidth = ctx.measureText(inputValue).width;
               ctx.fillStyle = "#ffffff";
@@ -312,24 +302,19 @@ export class Terminal3D {
       }
     };
 
-    // Update texture regularly
     this.updateTerminalTexture();
     setInterval(() => {
       this.updateTerminalTexture();
-    }, 100); // More frequent updates for better responsiveness
+    }, 100);
   }
 
   setupEventListeners() {
-    // Window resize
     window.addEventListener("resize", () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    const terminalInput = document.getElementById("terminal-input");
-
-    // CRITICAL FIX: Override the append_line function to include autoscroll
     window.objzEnsureAutoscroll = () => {
       const terminalBody = document.getElementById("terminal-body");
       if (terminalBody) {
@@ -337,13 +322,11 @@ export class Terminal3D {
       }
     };
 
-    // Monitor DOM changes for autoscroll on new lines
     const terminalOutput = document.getElementById("terminal-output");
     if (terminalOutput) {
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-            // New line added, trigger autoscroll
             setTimeout(() => {
               window.objzEnsureAutoscroll();
             }, 0);
@@ -357,20 +340,15 @@ export class Terminal3D {
       });
     }
 
-    // Raycaster for 3D screen click detection
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
-    // IMPROVED: Click on 3D screen to focus terminal input with better detection
     this.renderer.domElement.addEventListener("click", (event) => {
-      // Calculate mouse position in normalized device coordinates (-1 to +1)
       this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-      // Update the picking ray with the camera and mouse position
       this.raycaster.setFromCamera(this.mouse, this.camera);
 
-      // Get all meshes to test intersection
       const intersectables = [];
       if (this.pcModel) {
         this.pcModel.traverse((child) => {
@@ -383,8 +361,9 @@ export class Terminal3D {
         intersectables.push(this.screenMesh);
       }
 
-      // Calculate objects intersecting the picking ray
       const intersects = this.raycaster.intersectObjects(intersectables);
+
+      const terminalInput = document.getElementById("terminal-input");
 
       if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
@@ -394,34 +373,56 @@ export class Terminal3D {
           clickedObject,
         );
 
-        // Check if it's the screen or if it has screen material
         const isScreen =
+          clickedObject.name === "Plane008_Material002_0" ||
           clickedObject === this.screenMesh ||
           clickedObject.material?.map === this.terminalTexture ||
           (clickedObject.name &&
             clickedObject.name.toLowerCase().includes("screen"));
 
         if (isScreen) {
-          // Clicked on the screen! Focus the terminal input
+          console.log("Screen clicked - focusing terminal input");
           if (terminalInput) {
             terminalInput.focus();
-            console.log("Screen clicked - focusing terminal input");
+            this.isTerminalFocused = true;
           }
+        } else {
+          console.log("Clicked on non-screen object - removing focus");
+          if (terminalInput) {
+            terminalInput.blur();
+            this.isTerminalFocused = false;
+          }
+        }
+      } else {
+        console.log("Clicked on empty space - removing focus");
+        if (terminalInput) {
+          terminalInput.blur();
+          this.isTerminalFocused = false;
         }
       }
     });
 
-    // Basic focus on regular clicks (not on 3D canvas)
     document.addEventListener("click", (e) => {
-      if (terminalInput && !e.target.closest("#scene-container canvas")) {
-        terminalInput.focus();
+      const terminalInput = document.getElementById("terminal-input");
+
+      if (
+        !e.target.closest("#scene-container") &&
+        !e.target.closest("#terminal")
+      ) {
+        console.log("Clicked outside - removing focus");
+        if (terminalInput) {
+          terminalInput.blur();
+          this.isTerminalFocused = false;
+        }
       }
     });
 
-    // Focus terminal on meaningful key presses
     document.addEventListener("keydown", (e) => {
+      const terminalInput = document.getElementById("terminal-input");
+
       if (
         terminalInput &&
+        this.isTerminalFocused &&
         document.activeElement !== terminalInput &&
         !e.ctrlKey &&
         !e.altKey &&

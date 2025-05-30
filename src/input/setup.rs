@@ -252,7 +252,7 @@ impl Terminal {
                         spawn_local(async move {
                             for line in lines {
                                 append_line(&out_clone, &line, None);
-                                ensure_autoscroll();
+                                // ensure_autoscroll();
                                 let promise = Promise::new(&mut |resolve, _| {
                                     window()
                                         .unwrap()
