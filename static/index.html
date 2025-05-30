@@ -18,6 +18,21 @@
     <div id="scene-container"></div>
 
     <canvas tabindex="0" id="terminal"></canvas>
+    <input
+      id="hidden-input"
+      type="text"
+      style="
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      "
+      autocomplete="off"
+      spellcheck="false"
+    />
 
     <script type="importmap">
       {

@@ -1,5 +1,5 @@
-use std::cell::Cell;
-
+use super::line_buffer;
+use super::renderer::{LineOptions, TerminalRenderer};
 use crate::commands::CommandHandler;
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
@@ -8,14 +8,9 @@ use web_sys::{window, CanvasRenderingContext2d, Document, HtmlCanvasElement};
 
 #[derive(Clone)]
 pub struct Terminal {
-    pub canvas: HtmlCanvasElement,
-    pub context: CanvasRenderingContext2d,
-    pub y: Cell<f64>,
-    pub line_height: f64,
+    pub renderer: TerminalRenderer,
     pub command_handler: CommandHandler,
     pub base_prompt: String,
-    pub height: i32,
-    pub width: i32,
 }
 
 impl Terminal {
@@ -40,44 +35,20 @@ impl Terminal {
             .dyn_into::<CanvasRenderingContext2d>()
             .expect("failed to cast to CanvasRenderingContext2d");
 
-        // Set up canvas context with proper font settings
-        context.set_font("14px monospace");
-        context.set_text_baseline("top");
-
-        // Use fill_style property directly (newer non-deprecated API)
-        let _ = js_sys::Reflect::set(
-            &context,
-            &JsValue::from_str("fillStyle"),
-            &JsValue::from_str("#ffffff"),
-        );
-
-        // Enable crisp pixel rendering
-        context.set_image_smoothing_enabled(false);
-
+        let renderer = TerminalRenderer::new(canvas, context);
         let command_handler = CommandHandler::new();
         let base_prompt = "objz@objz".to_string();
-        let width = canvas_width as i32;
-        let height = canvas_height as i32;
 
-        // Clear canvas initially
-        context.save();
-        let _ = js_sys::Reflect::set(
-            &context,
-            &JsValue::from_str("fillStyle"),
-            &JsValue::from_str("#000000"),
+        // Initialize line buffer dimensions
+        line_buffer::set_terminal_dimensions(
+            renderer.max_chars_per_line(),
+            renderer.max_visible_lines(),
         );
-        context.fill_rect(0.0, 0.0, width as f64, height as f64);
-        context.restore();
 
         Self {
-            canvas,
-            context,
-            y: Cell::new(20.0),
-            line_height: 20.0,
+            renderer,
             command_handler,
             base_prompt,
-            height,
-            width,
         }
     }
 
@@ -109,5 +80,71 @@ impl Terminal {
         });
 
         let _ = JsFuture::from(promise).await;
+    }
+
+    // Legacy compatibility methods
+    pub async fn add_line(&self, text: &str, options: Option<LineOptions>) {
+        self.renderer.add_line(text, options).await;
+    }
+
+    pub fn clear_output(&self) {
+        self.renderer.clear_output();
+    }
+
+    pub fn prepare_for_input(&self) {
+        // Update prompt with current directory
+        let prompt = self.get_current_prompt();
+        line_buffer::set_current_prompt(prompt);
+        self.renderer.prepare_for_input();
+    }
+
+    pub fn finalize_input(&self, input: &str) {
+        self.renderer.finalize_input(input);
+    }
+
+    pub fn update_input_display(&self, input: &str) {
+        self.renderer.update_input_display(input);
+    }
+
+    pub fn draw_current_input_line(&self, input: &str) {
+        self.renderer.draw_current_input_line(input);
+    }
+
+    pub fn draw_cursor(&self, input: &str) {
+        self.renderer.draw_cursor_legacy(input);
+    }
+
+    // New methods for the enhanced line buffer system
+    pub fn render(&self) {
+        self.renderer.render();
+    }
+
+    pub fn add_output(&self, text: &str, color: Option<String>) {
+        line_buffer::add_output_lines(text, color);
+        self.renderer.render();
+    }
+
+    pub fn add_command_output(&self, command: &str, output: &str) {
+        let prompt = self.get_current_prompt();
+        line_buffer::add_command_line(&prompt, command);
+        if !output.is_empty() {
+            line_buffer::add_output_lines(output, None);
+        }
+        self.renderer.render();
+    }
+
+    pub fn scroll_up(&self, lines: usize) {
+        line_buffer::scroll_up(lines);
+        self.renderer.render();
+    }
+
+    pub fn scroll_down(&self, lines: usize) {
+        line_buffer::scroll_down(lines);
+        self.renderer.render();
+    }
+
+    pub fn reset_scroll(&self) {
+        line_buffer::reset_scroll();
+        self.renderer.render();
     }
 }
