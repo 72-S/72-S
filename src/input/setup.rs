@@ -1,5 +1,8 @@
 use crate::commands::CommandHandler;
-use crate::terminal::{line_buffer, InputMode, LineType, Terminal};
+use crate::terminal::{
+    autocomplete::{find_common_prefix, AutoComplete, CompletionResult},
+    line_buffer, InputMode, LineType, Terminal,
+};
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -7,6 +10,8 @@ use web_sys::{window, HtmlInputElement, KeyboardEvent};
 
 thread_local! {
     static CURRENT_INPUT: RefCell<String> = RefCell::new(String::new());
+    static IS_FOCUSED: RefCell<bool> = RefCell::new(true);
+    static AUTOCOMPLETE: RefCell<AutoComplete> = RefCell::new(AutoComplete::new());
 }
 
 pub struct CommandHistory {
@@ -148,7 +153,7 @@ impl InputSetup {
                     }
                     "Tab" => {
                         event.prevent_default();
-                        Self::handle_tab_completion(&terminal);
+                        Self::handle_tab_completion(&terminal, &hidden_input, &current_input);
                     }
                     _ => {}
                 }
@@ -160,12 +165,101 @@ impl InputSetup {
             .unwrap();
         keydown_callback.forget();
 
+        // Set up focus/blur event listeners for the hidden input
+        Self::setup_focus_blur_listeners(&terminal_clone, &hidden_input_clone);
+
         // Set up cursor blinking
         Self::setup_cursor_blink(&terminal_clone);
+
+        // Set up custom focus/blur event listeners from JavaScript
+        Self::setup_custom_focus_blur_listeners(&terminal_clone);
 
         // Initialize terminal
         terminal.prepare_for_input();
         let _ = hidden_input.focus();
+    }
+
+    fn setup_focus_blur_listeners(terminal: &Terminal, hidden_input: &HtmlInputElement) {
+        let terminal_clone = terminal.clone();
+
+        // Focus event listener
+        let focus_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                IS_FOCUSED.with(|focused| {
+                    *focused.borrow_mut() = true;
+                });
+                terminal.renderer.show_cursor();
+                terminal.render();
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        hidden_input
+            .add_event_listener_with_callback("focus", focus_callback.as_ref().unchecked_ref())
+            .unwrap();
+        focus_callback.forget();
+
+        // Blur event listener
+        let blur_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                IS_FOCUSED.with(|focused| {
+                    *focused.borrow_mut() = false;
+                });
+                terminal.renderer.hide_cursor();
+                terminal.render();
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        hidden_input
+            .add_event_listener_with_callback("blur", blur_callback.as_ref().unchecked_ref())
+            .unwrap();
+        blur_callback.forget();
+    }
+
+    fn setup_custom_focus_blur_listeners(terminal: &Terminal) {
+        let terminal_clone = terminal.clone();
+        let window = window().unwrap();
+
+        // Listen for custom terminalFocus event from JavaScript
+        let focus_event_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                IS_FOCUSED.with(|focused| {
+                    *focused.borrow_mut() = true;
+                });
+                terminal.renderer.show_cursor();
+                terminal.render();
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        window
+            .add_event_listener_with_callback(
+                "terminalFocus",
+                focus_event_callback.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        focus_event_callback.forget();
+
+        // Listen for custom terminalBlur event from JavaScript
+        let blur_event_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                IS_FOCUSED.with(|focused| {
+                    *focused.borrow_mut() = false;
+                });
+                terminal.renderer.hide_cursor();
+                terminal.render();
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        window
+            .add_event_listener_with_callback(
+                "terminalBlur",
+                blur_event_callback.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        blur_event_callback.forget();
     }
 
     fn handle_enter(
@@ -234,10 +328,141 @@ impl InputSetup {
         let _ = hidden_input.focus();
     }
 
-    fn handle_tab_completion(terminal: &Terminal) {
-        // For now, just render to maintain state
-        // TODO: Implement proper tab completion
-        terminal.render();
+    fn handle_tab_completion(
+        terminal: &Terminal,
+        hidden_input: &HtmlInputElement,
+        current_input: &str,
+    ) {
+        // Get current directory path from the command handler
+        let current_path = {
+            use crate::commands::filesystem::CURRENT_PATH;
+            CURRENT_PATH.lock().unwrap().clone()
+        };
+
+        // Parse the input to identify command and arguments
+        let trimmed = current_input.trim();
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+
+        // Determine what we're completing
+        let (command_prefix, completion_target) = if parts.is_empty() {
+            // Empty input - complete commands
+            ("", current_input)
+        } else if parts.len() == 1 && !trimmed.ends_with(' ') {
+            // Single word without trailing space - complete command
+            ("", current_input)
+        } else {
+            // Multiple words or single word with trailing space - complete path/argument
+            if parts.len() == 1 {
+                // Single command with trailing space
+                (trimmed, "")
+            } else {
+                // Command with arguments - complete the last argument
+                let last_space_idx = current_input.rfind(' ').unwrap_or(0);
+                let prefix = &current_input[..=last_space_idx];
+                let target = &current_input[last_space_idx + 1..];
+                (prefix, target)
+            }
+        };
+
+        // Perform completion
+        let completion_result = AUTOCOMPLETE.with(|autocomplete| {
+            autocomplete
+                .borrow_mut()
+                .complete(current_input, &current_path)
+        });
+
+        match completion_result {
+            CompletionResult::None => {
+                // No completions available - do nothing
+            }
+            CompletionResult::Single(completion) => {
+                // Single completion - construct the full command
+                let full_completion = if command_prefix.is_empty() {
+                    // Completing a command
+                    completion
+                } else {
+                    // Completing a path/argument - combine command prefix with completion
+                    format!("{}{}", command_prefix, completion)
+                };
+
+                hidden_input.set_value(&full_completion);
+                CURRENT_INPUT.with(|input| {
+                    *input.borrow_mut() = full_completion.clone();
+                });
+
+                // Set cursor position to the end of the completed text
+                let cursor_pos = full_completion.len();
+                let _ = hidden_input.set_selection_range(cursor_pos as u32, cursor_pos as u32);
+
+                line_buffer::update_input_state(full_completion, cursor_pos);
+                terminal.render();
+            }
+            CompletionResult::Multiple(completions) => {
+                // Multiple completions - find common prefix and show options
+                if let Some(common_prefix) = find_common_prefix(&completions) {
+                    // If there's a common prefix longer than current completion target, use it
+                    if common_prefix.len() > completion_target.len() {
+                        let full_completion = if command_prefix.is_empty() {
+                            common_prefix
+                        } else {
+                            format!("{}{}", command_prefix, common_prefix)
+                        };
+
+                        hidden_input.set_value(&full_completion);
+                        CURRENT_INPUT.with(|input| {
+                            *input.borrow_mut() = full_completion.clone();
+                        });
+
+                        // Set cursor position to the end of the common prefix
+                        let cursor_pos = full_completion.len();
+                        let _ =
+                            hidden_input.set_selection_range(cursor_pos as u32, cursor_pos as u32);
+
+                        line_buffer::update_input_state(full_completion, cursor_pos);
+                        terminal.render();
+                        return;
+                    }
+                }
+
+                // Show all available completions
+                let prompt = terminal.get_current_prompt();
+                line_buffer::add_command_line(&prompt, current_input);
+
+                // Format completions nicely
+                let completions_text = if completions.len() <= 10 {
+                    // Show all completions on one line if there are few
+                    completions.join("  ")
+                } else {
+                    // Show completions in columns if there are many
+                    let mut output = String::new();
+                    for (i, completion) in completions.iter().enumerate() {
+                        if i > 0 && i % 4 == 0 {
+                            output.push('\n');
+                        } else if i > 0 {
+                            output.push_str("  ");
+                        }
+                        output.push_str(completion);
+                    }
+                    output
+                };
+
+                line_buffer::add_output_lines(&completions_text, None);
+
+                // Restore the input prompt
+                Self::prepare_for_next_input(terminal, hidden_input);
+                hidden_input.set_value(current_input);
+                CURRENT_INPUT.with(|input| {
+                    *input.borrow_mut() = current_input.to_string();
+                });
+
+                // Set cursor position to the end of the current input
+                let cursor_pos = current_input.len();
+                let _ = hidden_input.set_selection_range(cursor_pos as u32, cursor_pos as u32);
+
+                line_buffer::update_input_state(current_input.to_string(), cursor_pos);
+                terminal.render();
+            }
+        }
     }
 
     async fn handle_system_panic(terminal: &Terminal) {
@@ -297,9 +522,12 @@ impl InputSetup {
         let terminal_clone = terminal.clone();
 
         let blink_callback = Closure::wrap(Box::new(move || {
-            terminal_clone.renderer.toggle_cursor();
+            // Only blink cursor if terminal is focused
+            let is_focused = IS_FOCUSED.with(|focused| *focused.borrow());
             let state = line_buffer::get_terminal_state();
-            if state.input_mode == InputMode::Normal {
+
+            if is_focused && state.input_mode == InputMode::Normal {
+                terminal_clone.renderer.toggle_cursor();
                 terminal_clone.render();
             }
         }) as Box<dyn FnMut()>);
