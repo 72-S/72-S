@@ -1,0 +1,3186 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    deploy.yml
+    snake.yml
+js/
+  index.js
+  model.js
+src/
+  ascii_art/
+    mod.rs
+    user.rs
+  boot/
+    boot.rs
+    mod.rs
+  commands/
+    filesystem.rs
+    misc.rs
+    mod.rs
+    processor.rs
+    system.rs
+  input/
+    autoscroll.rs
+    history.rs
+    mod.rs
+    setup.rs
+  terminal/
+    autocomplete.rs
+    core.rs
+    dom.rs
+    mod.rs
+    renderer.rs
+  utils/
+    dom.rs
+    mod.rs
+    panic.rs
+  lib.rs
+static/
+  index.html
+style/
+  styles.css
+.gitignore
+build.sh
+Cargo.toml
+README.md
+serve.sh
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/input/history.rs">
+use std::collections::VecDeque;
+
+#[derive(Clone)]
+pub struct CommandHistory {
+    commands: VecDeque<String>,
+    current_index: Option<usize>,
+    max_size: usize,
+}
+
+impl CommandHistory {
+    pub fn new(max_size: usize) -> Self {
+        Self {
+            commands: VecDeque::new(),
+            current_index: None,
+            max_size,
+        }
+    }
+
+    pub fn add(&mut self, cmd: String) {
+        let trimmed = cmd.trim();
+        if !trimmed.is_empty() {
+            if let Some(pos) = self.commands.iter().position(|x| x == trimmed) {
+                self.commands.remove(pos);
+            }
+            self.commands.push_front(trimmed.to_string());
+            if self.commands.len() > self.max_size {
+                self.commands.pop_back();
+            }
+        }
+        self.current_index = None;
+    }
+
+    pub fn previous(&mut self) -> Option<String> {
+        if self.commands.is_empty() {
+            return None;
+        }
+        match self.current_index {
+            None => {
+                self.current_index = Some(0);
+                self.commands.get(0).cloned()
+            }
+            Some(idx) if idx + 1 < self.commands.len() => {
+                self.current_index = Some(idx + 1);
+                self.commands.get(idx + 1).cloned()
+            }
+            Some(idx) => self.commands.get(idx).cloned(),
+        }
+    }
+
+    pub fn next(&mut self) -> Option<String> {
+        match self.current_index {
+            None => None,
+            Some(0) => {
+                self.current_index = None;
+                Some(String::new())
+            }
+            Some(idx) => {
+                let new_idx = idx - 1;
+                self.current_index = Some(new_idx);
+                self.commands.get(new_idx).cloned()
+            }
+        }
+    }
+}
+</file>
+
+<file path="src/input/mod.rs">
+pub mod autoscroll;
+pub mod history;
+pub mod setup;
+</file>
+
+<file path="src/terminal/dom.rs">
+use web_sys::{window, Element};
+
+impl super::Terminal {
+    pub fn create_div_element(&self, text: &str, class: Option<&str>) -> Element {
+        let doc = window().unwrap().document().unwrap();
+        let div = doc.create_element("div").unwrap();
+        if text.is_empty() {
+            div.set_inner_html("");
+        } else {
+            div.set_text_content(Some(text));
+        }
+        if let Some(cls) = class {
+            div.set_class_name(cls);
+        }
+        div
+    }
+
+    pub fn clear_output(&self) {
+        self.output_element.set_inner_html("");
+    }
+}
+</file>
+
+<file path="src/ascii_art/mod.rs">
+pub mod user;
+
+use user::user;
+
+#[derive(Clone)]
+pub struct AsciiArt;
+
+impl AsciiArt {
+    pub fn get_user() -> String {
+        user()
+    }
+}
+</file>
+
+<file path="src/ascii_art/user.rs">
+pub fn user() -> String {
+    r#"
+   ___  ___    _ ____
+  / _ \| _ )_ | |_  /
+ | (_) | _ \ || |/ / 
+  \___/|___/\__//___|
+
+  [ me@objz.dev ]
+
+  "Code is poetry in motion"
+    "#
+    .to_string()
+}
+</file>
+
+<file path="src/boot/boot.rs">
+use crate::terminal::Terminal;
+
+pub async fn boot(term: &Terminal) {
+    let boot_messages = vec![
+        (
+            "Loading Linux kernel version 6.8.9-arch1-1...",
+            "[OK]",
+            "green",
+        ),
+        ("Loading initial ramdisk (initramfs)...", "[OK]", "green"),
+        ("Starting systemd-udevd v254.5-1...", "[OK]", "green"),
+        ("Probing hardware...", "[OK]", "green"),
+        ("Detected storage device: /dev/nvme0n1", "[OK]", "green"),
+        ("Detected storage device: /dev/sda", "[OK]", "green"),
+        ("Started udev Kernel Device Manager.", "[OK]", "green"),
+        ("Activating swap on /dev/sda2...", "[OK]", "green"),
+        ("Mounting root filesystem...", "[OK]", "green"),
+        ("Checking file system on /dev/sda1...", "[OK]", "green"),
+        ("Mounting /boot...", "[OK]", "green"),
+        ("Mounting /home...", "[OK]", "green"),
+        ("Mounting /var...", "[OK]", "green"),
+        ("Starting systemd-journald.service...", "[OK]", "green"),
+        (
+            "Starting systemd-tmpfiles-setup-dev.service...",
+            "[OK]",
+            "green",
+        ),
+        ("Starting systemd-sysctl.service...", "[OK]", "green"),
+        ("Starting Load Kernel Modules...", "[OK]", "green"),
+        ("Loading kernel modules: i915 ext4 fuse...", "[OK]", "green"),
+        (
+            "Started Rule-based Manager for Device Events and Filesystems.",
+            "[OK]",
+            "green",
+        ),
+        ("Starting Network Manager...", "[OK]", "green"),
+        ("Started Network Time Synchronization.", "[OK]", "green"),
+        (
+            "Starting Login Service (systemd-logind)...",
+            "[OK]",
+            "green",
+        ),
+        (
+            "Starting Authorization Manager (polkitd)...",
+            "[OK]",
+            "green",
+        ),
+        ("Starting User Manager for UID 1000...", "[OK]", "green"),
+        ("Started Getty on tty1.", "[OK]", "green"),
+        ("Reached target Multi-User System.", "[OK]", "green"),
+        ("Starting Interface...", "[OK]", "green"),
+    ];
+
+    for (msg, status, color) in boot_messages {
+        term.add_line_boot(msg, status, color).await;
+        term.sleep(15).await;
+    }
+
+    term.add_line("").await;
+    term.add_line_boot("Started objz Terminal", "[OK]", "green")
+        .await;
+    term.sleep(200).await;
+    term.add_line("").await;
+}
+
+pub async fn logo(term: &Terminal) {
+    let logo_lines = vec![
+        "                                                    ",
+        " ░▒▓██████▓▒░░▒▓███████▓▒░       ░▒▓█▓▒░▒▓████████▓▒░ ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░      ░▒▓█▓▒░",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░    ░▒▓██▓▒░ ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓███████▓▒░       ░▒▓█▓▒░  ░▒▓██▓▒░   ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓██▓▒░     ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░       ",
+        " ░▒▓██████▓▒░░▒▓███████▓▒░ ░▒▓██████▓▒░░▒▓████████▓▒░",
+        "                                                    ",
+    ];
+
+    for line in logo_lines {
+        term.add_colored_line_typing(line, 10, "cyan").await;
+        term.sleep(30).await;
+    }
+}
+
+pub async fn login(term: &Terminal) {
+    let login_messages = vec![
+        ("Arch Linux 6.6.32-1-lts (tty1)", "", "green"),
+        ("", "", ""),
+        ("login: anonym", "", "white"),
+        ("password: ", "", "white"),
+        ("", "", ""),
+        ("Last login: Mon May 27 13:59:36 2025", "", "white"),
+        ("Type 'help' for further information", "", "yellow"),
+        ("", "", ""),
+    ];
+
+    for (msg, _status, color) in login_messages {
+        if msg.is_empty() {
+            term.add_line("").await;
+        } else if msg.contains("login:") {
+            term.add_line_typing(msg, 50).await;
+        } else if msg.contains("password:") {
+            let full = format!("{}••••••••", msg);
+            term.add_line_typing(&full, 50).await;
+        } else {
+            term.add_line_colored(msg, color).await;
+        }
+        term.sleep(60).await;
+    }
+}
+</file>
+
+<file path="src/boot/mod.rs">
+use crate::terminal::Terminal;
+
+pub mod boot;
+
+impl Terminal {
+    pub async fn run_boot_sequence(&self) {
+        self.clear_output();
+        boot::boot(self).await;
+        boot::logo(self).await;
+        boot::login(self).await;
+    }
+}
+</file>
+
+<file path="src/commands/mod.rs">
+pub mod filesystem;
+pub mod misc;
+pub mod processor;
+pub mod system;
+
+pub use processor::CommandHandler;
+</file>
+
+<file path="src/commands/system.rs">
+use crate::ascii_art::AsciiArt;
+use std::sync::OnceLock;
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = Date)]
+    fn now() -> f64;
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+static START_TIME: OnceLock<f64> = OnceLock::new();
+pub fn init() {
+    START_TIME.set(now()).ok();
+}
+
+pub fn clear(_args: &[&str]) -> String {
+    "CLEAR_SCREEN".to_string()
+}
+
+pub fn echo(args: &[&str]) -> String {
+    if args.is_empty() {
+        String::new()
+    } else if args[0] == "$USER" {
+        AsciiArt::get_user()
+    } else {
+        args.join(" ")
+    }
+}
+
+pub fn date(_args: &[&str]) -> String {
+    let millis = now();
+    let date = js_sys::Date::new(&JsValue::from_f64(millis));
+    date.to_iso_string().into()
+}
+
+pub fn uptime(_args: &[&str]) -> String {
+    let start = *START_TIME.get().unwrap_or(&now());
+    let elapsed = now() - start;
+
+    let total_secs = (elapsed / 1000.0) as u64;
+    let hours = total_secs / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let seconds = total_secs % 60;
+
+    format!("{:02}h {:02}m {:02}s", hours, minutes, seconds)
+}
+
+pub fn neofetch(_args: &[&str]) -> String {
+    r#"                   -`                    objz@portfolio
+                  .o+`                   -----------------
+                 `ooo/                   OS: Portfolio Linux x86_64
+                `+oooo:                  Host: GitHub Pages
+               `+oooooo:                 Kernel: WASM 6.6.6
+               -+oooooo+:                Uptime: 17 days, 13 hours, 28 mins
+             `/:-:++oooo+:               Packages: 42 (rust), 13 (npm)
+            `/++++/+++++++:              Shell: objz-shell 3.0.0
+           `/++++++++++++++:             Resolution: 1920x1080
+          `/+++ooooooooo++++/            WM: Terminal Emulator
+         ./ooosssso++osssssso+`          Theme: Dark
+        .oossssso-````/ossssss+`         Icons: ASCII Art Pack
+       -osssssso.      :ssssssso.        Terminal: objz-term
+      :osssssss/        +sssso+++.
+     /ossssssss/        +ssssooo/-       Memory: 521MiB / ∞GiB
+   `/ossssso+/:-        -:/+osssso+-     
+  `+sso+:-`                 `.-/+oso:    
+ `++:.                           `-/+/   
+ .`                                 `/   "#
+        .to_string()
+}
+</file>
+
+<file path="src/input/autoscroll.rs">
+use wasm_bindgen::prelude::*;
+use web_sys::window;
+
+pub fn ensure_autoscroll() {
+    if let Some(window) = window() {
+        if let Some(doc) = window.document() {
+            if let Some(body) = doc.get_element_by_id("terminal-body") {
+                body.set_scroll_top(body.scroll_height());
+
+                let _ =
+                    js_sys::eval("if (window.objzEnsureAutoscroll) window.objzEnsureAutoscroll();");
+
+                let body_clone = body.clone();
+                let closure = Closure::once_into_js(Box::new(move || {
+                    body_clone.set_scroll_top(body_clone.scroll_height());
+                }) as Box<dyn FnOnce()>);
+
+                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    closure.as_ref().unchecked_ref(),
+                    0,
+                );
+            }
+        }
+    }
+}
+
+pub fn trim_output(max_height: i32) {
+    if let Some(doc) = window().unwrap().document() {
+        if let Some(output) = doc.get_element_by_id("terminal-output") {
+            let output_el: web_sys::HtmlElement = output.unchecked_into();
+            while output_el.scroll_height() > max_height && output_el.child_element_count() > 1 {
+                let first = output_el.first_element_child();
+                if let Some(f) = first {
+                    let _ = output_el.remove_child(&f);
+                }
+            }
+        }
+    }
+}
+</file>
+
+<file path="src/terminal/autocomplete.rs">
+pub struct AutoComplete {
+    commands: Vec<String>,
+}
+
+impl AutoComplete {
+    pub fn new() -> Self {
+        let commands = vec![
+            "help", "clear", "history", "echo", "date", "uptime", "neofetch", "uname", "ls", "ll",
+            "cd", "cat", "pwd", "tree", "mkdir", "touch", "rm", "ln", "sudo", "cowsay", "sl",
+            "lolcat", "calc",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+
+        Self { commands }
+    }
+
+    pub fn complete(&mut self, input: &str, current_path: &[String]) -> CompletionResult {
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return CompletionResult::None;
+        }
+
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+
+        if parts.len() == 1 {
+            self.complete_command(&parts[0])
+        } else {
+            let command = parts[0];
+            let partial_path = parts.last().map_or("", |v| v);
+
+            match command {
+                "cd" | "ls" | "cat" | "tree" | "rm" | "mkdir" | "touch" => {
+                    self.complete_path(partial_path, current_path, command == "cd")
+                }
+                _ => CompletionResult::None,
+            }
+        }
+    }
+
+    fn complete_command(&self, partial: &str) -> CompletionResult {
+        let matches: Vec<String> = self
+            .commands
+            .iter()
+            .filter(|cmd| cmd.starts_with(partial))
+            .cloned()
+            .collect();
+
+        match matches.len() {
+            0 => CompletionResult::None,
+            1 => CompletionResult::Single(matches[0].clone()),
+            _ => CompletionResult::Multiple(matches),
+        }
+    }
+
+    fn complete_path(
+        &mut self,
+        partial: &str,
+        current_path: &[String],
+        dirs_only: bool,
+    ) -> CompletionResult {
+        use crate::commands::filesystem::{get_filesystem_entries, normalize_path};
+
+        let (dir_path, filename_prefix) = if partial.contains('/') {
+            let last_slash = partial.rfind('/').unwrap();
+            (&partial[..last_slash + 1], &partial[last_slash + 1..])
+        } else {
+            ("", partial)
+        };
+
+        let search_path = if dir_path.is_empty() {
+            current_path.to_vec()
+        } else {
+            normalize_path(dir_path, current_path)
+        };
+
+        let entries = get_filesystem_entries(&search_path, dirs_only);
+
+        let matches: Vec<String> = entries
+            .into_iter()
+            .filter(|entry| entry.starts_with(filename_prefix))
+            .map(|entry| {
+                if dir_path.is_empty() {
+                    entry
+                } else {
+                    format!("{}{}", dir_path, entry)
+                }
+            })
+            .collect();
+
+        match matches.len() {
+            0 => CompletionResult::None,
+            1 => CompletionResult::Single(matches[0].clone()),
+            _ => CompletionResult::Multiple(matches),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CompletionResult {
+    None,
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+// Add the helper function here
+pub fn find_common_prefix(strings: &[String]) -> Option<String> {
+    if strings.is_empty() {
+        return None;
+    }
+
+    let first = &strings[0];
+    let mut prefix = String::new();
+
+    for (i, ch) in first.chars().enumerate() {
+        if strings.iter().all(|s| s.chars().nth(i) == Some(ch)) {
+            prefix.push(ch);
+        } else {
+            break;
+        }
+    }
+
+    if prefix.is_empty() {
+        None
+    } else {
+        Some(prefix)
+    }
+}
+</file>
+
+<file path="src/terminal/core.rs">
+use crate::commands::CommandHandler;
+use js_sys::Promise;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{window, Document, Element};
+
+pub struct Terminal {
+    pub output_element: Element,
+    pub command_processor: CommandHandler,
+    pub base_prompt: String,
+    pub height: i32,
+}
+
+impl Terminal {
+    pub fn new(document: &Document) -> Self {
+        let output_element = document.get_element_by_id("terminal-output").unwrap();
+        let command_processor = CommandHandler::new();
+        let base_prompt = "anonym@objz".to_string();
+        let height = 760;
+
+        Self {
+            output_element,
+            command_processor,
+            base_prompt,
+            height,
+        }
+    }
+
+    pub fn get_current_prompt(&self) -> String {
+        let cwd = self.command_processor.get_current_directory();
+        let display_path = if cwd == "/home/objz" {
+            "~".to_string()
+        } else if cwd.starts_with("/home/objz/") {
+            format!("~{}", &cwd["/home/objz".len()..])
+        } else {
+            cwd
+        };
+
+        format!("{}:{}$ ", self.base_prompt, display_path)
+    }
+
+    pub async fn start_intro(&self) {
+        self.run_boot_sequence().await;
+    }
+
+    pub async fn start_shell(&self) {
+        self.setup_input_system();
+    }
+
+    pub async fn sleep(&self, ms: i32) {
+        let promise = Promise::new(&mut |resolve, _| {
+            let w = window().unwrap();
+            let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms);
+        });
+        let _ = JsFuture::from(promise).await;
+    }
+}
+</file>
+
+<file path="src/terminal/mod.rs">
+pub mod autocomplete;
+pub mod core;
+pub mod dom;
+pub mod renderer;
+
+pub use core::Terminal;
+</file>
+
+<file path="src/utils/dom.rs">
+use web_sys::{window, Element};
+
+use crate::input::autoscroll::{ensure_autoscroll, trim_output};
+
+pub fn create_div(text: &str, class: Option<&str>) -> Element {
+    let div = window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .create_element("div")
+        .unwrap();
+
+    if text.is_empty() {
+        div.set_inner_html("");
+    } else {
+        div.set_text_content(Some(text));
+    }
+
+    if let Some(class) = class {
+        div.set_class_name(class);
+    }
+
+    div
+}
+
+pub fn append_line(element: &Element, text: &str, class: Option<&str>) {
+    let div = create_div(text, class);
+    element.append_child(&div).unwrap();
+    trim_output(760);
+    ensure_autoscroll();
+}
+
+pub fn clear_output(element: &Element) {
+    element.set_inner_html("");
+}
+</file>
+
+<file path="src/utils/mod.rs">
+pub mod dom;
+pub mod panic;
+</file>
+
+<file path="src/utils/panic.rs">
+use crate::utils::dom::{append_line, clear_output};
+use js_sys::Promise;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{window, Element};
+
+pub async fn system_panic(element: &Element) {
+    clear_output(element);
+
+    let panic_lines = vec![
+        "⚠️  CRITICAL SYSTEM ERROR ⚠️",
+        "",
+        "Deleting root filesystem...",
+        "rm: removing /usr... ████████████░░░░ 75%",
+        "rm: removing /var... ██████████████░░ 87%",
+        "rm: removing /etc... ████████████████ 100%",
+        "",
+        "SYSTEM DESTROYED ☠️",
+        "",
+        "Just kidding! This is a just website, not your actual system.",
+        "Nice try though! 😉",
+        "",
+        "(Don't actually run 'sudo rm -rf /' on real systems!)",
+        "",
+    ];
+
+    for line in panic_lines {
+        let class = if line.contains("⚠️") || line.contains("☠️") {
+            Some("error")
+        } else if line.contains("████") {
+            Some("warning")
+        } else {
+            None
+        };
+        append_line(element, line, class);
+
+        let promise = Promise::new(&mut |resolve, _| {
+            let window = window().unwrap();
+            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 300);
+        });
+        let _ = JsFuture::from(promise).await;
+    }
+
+    let promise = Promise::new(&mut |resolve, _| {
+        let window = window().unwrap();
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 2000);
+    });
+    let _ = JsFuture::from(promise).await;
+
+    clear_output(element);
+    append_line(
+        element,
+        "System restored! Terminal is back online.",
+        Some("success"),
+    );
+    append_line(element, "", None);
+}
+</file>
+
+<file path=".github/workflows/snake.yml">
+name: Generate snake animation
+
+on:
+  schedule: # execute every 12 hours
+    - cron: "* */12 * * *"
+
+  workflow_dispatch:
+
+  push:
+    branches:
+    - main
+
+jobs:
+  generate:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: generate snake.svg
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: dist/snake.svg?palette=github-dark
+
+
+      - name: push snake.svg to the output branch
+        uses: crazy-max/ghaction-github-pages@v3.1.0
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+</file>
+
+<file path="js/index.js">
+import init from "../pkg/portfolio.js";
+import { Terminal3D } from "./model.js";
+
+init().then(() => {
+  console.log("Portfolio loaded successfully!");
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    window.terminal3d = new Terminal3D();
+  }, 1000);
+});
+
+window.addEventListener("beforeunload", () => {
+  if (window.terminal3d) {
+    window.terminal3d.dispose();
+  }
+});
+</file>
+
+<file path=".gitignore">
+/target
+**/*.rs.bk
+Cargo.lock
+bin/
+pkg/
+dist/
+target/
+wasm-pack.log
+repomix-output.xml
+</file>
+
+<file path="build.sh">
+#!/bin/zsh
+wasm-pack build --target web --out-dir pkg
+rm -rf dist 
+mkdir -p dist/js
+mkdir -p dist/style
+cp -r static/* dist/
+cp -r style/* dist/style/
+cp -r js/* dist/js/
+cp -r pkg dist/
+</file>
+
+<file path=".github/workflows/deploy.yml">
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install wasm-pack
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM
+        run: |
+          wasm-pack build --target web --out-dir pkg
+
+      - name: Prepare static site
+        run: |
+          mkdir -p dist/js
+          mkdir -p dist/style
+          cp -r static/* dist/
+          cp -r style/* dist/style/
+          cp -r js/* dist/js/
+          cp -r pkg dist/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+</file>
+
+<file path="js/model.js">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+export class Terminal3D {
+  constructor() {
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.controls = null;
+    this.pcModel = null;
+    this.screenMesh = null;
+    this.terminalTexture = null;
+    this.isTerminalFocused = false;
+    this.animationId = null;
+    this.init();
+  }
+
+  async init() {
+    try {
+      this.updateLoadingProgress(10);
+      await this.setupScene();
+      this.updateLoadingProgress(30);
+      await this.loadPCModel();
+      this.updateLoadingProgress(60);
+      await this.setupTerminalTexture();
+      this.updateLoadingProgress(80);
+      this.setupEventListeners();
+      this.updateLoadingProgress(100);
+      this.hideLoading();
+      this.showTerminal();
+      this.animate();
+    } catch (e) {
+      console.error("3D init failed:", e);
+      this.showError();
+    }
+  }
+
+  updateLoadingProgress(p) {
+    const bar = document.getElementById("loading-progress");
+    if (bar) bar.style.width = p + "%";
+  }
+
+  hideLoading() {
+    setTimeout(() => {
+      const L = document.getElementById("loading");
+      if (L) L.classList.add("hidden");
+    }, 500);
+  }
+
+  showError() {
+    const txt = document.querySelector(".loading-text");
+    if (txt) {
+      txt.textContent = "Failed to load 3D. Showing terminal.";
+      txt.style.color = "#ff5555";
+    }
+    setTimeout(() => {
+      const L = document.getElementById("loading");
+      if (L) L.classList.add("hidden");
+      const term = document.getElementById("terminal");
+      if (term) term.style.visibility = "visible";
+    }, 2000);
+  }
+
+  showTerminal() {
+    const terminal = document.getElementById("terminal");
+    if (terminal) {
+      terminal.style.visibility = "visible";
+    }
+  }
+
+  async setupScene() {
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x0a0a0a);
+    this.camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100,
+    );
+    this.camera.position.set(0, 1.5, 3);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    document
+      .getElementById("scene-container")
+      .appendChild(this.renderer.domElement);
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.target.set(0, 1, 0);
+
+    this.scene.add(new THREE.HemisphereLight(0x8be9fd, 0x444444, 0.3));
+  }
+
+  async loadPCModel() {
+    console.log("Loading PC model...");
+    return new Promise((resolve) => {
+      const loader = new GLTFLoader();
+      loader.load(
+        "./pc.glb",
+        (gltf) => {
+          console.log("Model loaded");
+          this.pcModel = gltf.scene;
+          this.pcModel.scale.setScalar(1);
+          this.pcModel.position.set(0, 0, 0);
+
+          this.pcModel.traverse((c) => {
+            if (c.isMesh) {
+              c.castShadow = c.receiveShadow = true;
+              const n = c.name.toLowerCase();
+              const m = c.material?.name?.toLowerCase() || "";
+              if (
+                n.includes("screen") ||
+                n.includes("monitor") ||
+                m.includes("screen") ||
+                m.includes("monitor") ||
+                c.name === "Plane008_Material002_0"
+              ) {
+                this.screenMesh = c;
+                console.log("Found screen:", c.name);
+              }
+            }
+          });
+          if (!this.screenMesh) {
+            this.findScreenMesh();
+          }
+          this.scene.add(this.pcModel);
+          resolve();
+        },
+        (prog) => {
+          const pct = 30 + (prog.loaded / prog.total) * 30;
+          this.updateLoadingProgress(pct);
+        },
+        (err) => {
+          console.warn("Model load failed:", err);
+          resolve();
+        },
+      );
+    });
+  }
+
+  findScreenMesh() {
+    const candidates = [];
+    this.pcModel.traverse((c) => {
+      if (c.isMesh && c.geometry) {
+        const box = new THREE.Box3().setFromObject(c);
+        const s = box.getSize(new THREE.Vector3());
+        const flat = Math.min(s.x, s.y, s.z) < Math.max(s.x, s.y, s.z) * 0.1;
+        const big = Math.max(s.x, s.y, s.z) > 0.5;
+        if (flat && big) candidates.push({ mesh: c, area: s.x * s.y * s.z });
+      }
+    });
+    if (candidates.length) {
+      candidates.sort((a, b) => b.area - a.area);
+      this.screenMesh = candidates[0].mesh;
+    } else {
+      this.pcModel.traverse((c) => {
+        if (!this.screenMesh && c.isMesh) this.screenMesh = c;
+      });
+    }
+  }
+
+  async setupTerminalTexture() {
+    const t = document.getElementById("terminal");
+    if (t) t.classList.add("texture-mode");
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 768;
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.zIndex = "1000";
+    canvas.style.border = "1px solid red";
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+    this.terminalTexture = new THREE.CanvasTexture(canvas);
+    this.terminalTexture.minFilter = THREE.LinearFilter;
+    this.terminalTexture.magFilter = THREE.LinearFilter;
+    this.terminalTexture.flipY = true;
+
+    if (this.screenMesh) {
+      this.screenMesh.material = new THREE.MeshBasicMaterial({
+        map: this.terminalTexture,
+        emissive: new THREE.Color(0x001a1a),
+        emissiveIntensity: 0.1,
+      });
+    }
+
+    this.terminalTexture.offset.y = 0.2;
+    this.terminalTexture.repeat.y = 0.9;
+
+    this.updateTerminalTexture = () => {
+      try {
+        const terminalBody = document.getElementById("terminal-body");
+        const terminalOutput = document.getElementById("terminal-output");
+
+        if (!terminalBody || !terminalOutput) return;
+
+        ctx.fillStyle = "#0a0a0a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const scrollTop = terminalBody.scrollTop;
+        const bodyHeight = terminalBody.clientHeight;
+
+        const lineHeight = parseInt(ctx.font.match(/\d+/)[0], 10) + 4;
+
+        const startLine = Math.floor(scrollTop / lineHeight);
+        const visibleLines = Math.ceil(bodyHeight / lineHeight) + 2; // +2 buffer
+
+        const outputDivs = Array.from(terminalOutput.children);
+
+        ctx.font = "16px 'JetBrains Mono', monospace";
+
+        ctx.strokeStyle = "#ff0000";
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+        let y = 20;
+        let lineIndex = 0;
+
+        if (y + lineHeight > canvas.height) {
+          y = canvas.height - lineHeight - 10; // give a margin
+        }
+
+        for (let i = 0; i < outputDivs.length; i++) {
+          const div = outputDivs[i];
+          const text = div.textContent || "";
+
+          const maxChars = Math.floor((canvas.width - 40) / 10);
+          const lines = [];
+          if (text.length > maxChars) {
+            for (let j = 0; j < text.length; j += maxChars) {
+              lines.push(text.substring(j, j + maxChars));
+            }
+          } else {
+            lines.push(text);
+          }
+
+          for (const line of lines) {
+            if (
+              lineIndex >= startLine &&
+              lineIndex < startLine + visibleLines
+            ) {
+              if (div.classList.contains("command")) {
+                ctx.fillStyle = "#8be9fd";
+              } else if (div.classList.contains("error")) {
+                ctx.fillStyle = "#ff5555";
+              } else if (div.classList.contains("success")) {
+                ctx.fillStyle = "#50fa7b";
+              } else if (div.classList.contains("warning")) {
+                ctx.fillStyle = "#ffb86c";
+              } else if (div.classList.contains("info")) {
+                ctx.fillStyle = "#bd93f9";
+              } else {
+                ctx.fillStyle = "#e6e6e6";
+              }
+
+              ctx.fillText(line, 20, y);
+              y += lineHeight;
+            }
+            lineIndex++;
+          }
+
+          console.log({
+            scrollTop,
+            clientHeight: terminalBody.clientHeight,
+            scrollHeight: terminalBody.scrollHeight,
+            outputLines: outputDivs.length,
+            startLine,
+            visibleLines,
+          });
+        }
+
+        const terminalInput = document.getElementById("terminal-input");
+        if (terminalInput) {
+          const promptElements = document.querySelectorAll(".prompt");
+          const currentPrompt = promptElements[promptElements.length - 1];
+          const promptText = currentPrompt
+            ? currentPrompt.textContent
+            : "objz:~$ ";
+          const inputValue = terminalInput.value;
+
+          if (lineIndex >= startLine && lineIndex < startLine + visibleLines) {
+            ctx.fillStyle = "#8be9fd";
+            ctx.fillText(promptText, 20, y);
+
+            ctx.fillStyle = "#f8f8f2";
+            const promptWidth = ctx.measureText(promptText).width;
+            ctx.fillText(inputValue, 20 + promptWidth, y);
+
+            if (document.activeElement === terminalInput) {
+              const inputWidth = ctx.measureText(inputValue).width;
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(20 + promptWidth + inputWidth, y - 15, 2, 18);
+            }
+          }
+        }
+
+        this.terminalTexture.needsUpdate = true;
+      } catch (e) {
+        console.warn("Texture update failed:", e);
+      }
+    };
+
+    this.updateTerminalTexture();
+    setInterval(() => {
+      this.updateTerminalTexture();
+    }, 100);
+  }
+
+  setupEventListeners() {
+    window.addEventListener("resize", () => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    window.objzEnsureAutoscroll = () => {
+      const terminalBody = document.getElementById("terminal-body");
+      if (terminalBody) {
+        terminalBody.scrollTop = terminalBody.scrollHeight;
+      }
+    };
+
+    const terminalOutput = document.getElementById("terminal-output");
+    if (terminalOutput) {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+            setTimeout(() => {
+              window.objzEnsureAutoscroll();
+            }, 0);
+          }
+        });
+      });
+
+      observer.observe(terminalOutput, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+
+    this.renderer.domElement.addEventListener("click", (event) => {
+      this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      const intersectables = [];
+      if (this.pcModel) {
+        this.pcModel.traverse((child) => {
+          if (child.isMesh) {
+            intersectables.push(child);
+          }
+        });
+      }
+      if (this.screenMesh && !intersectables.includes(this.screenMesh)) {
+        intersectables.push(this.screenMesh);
+      }
+
+      const intersects = this.raycaster.intersectObjects(intersectables);
+
+      const terminalInput = document.getElementById("terminal-input");
+
+      if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        console.log(
+          "Clicked object:",
+          clickedObject.name || "unnamed",
+          clickedObject,
+        );
+
+        const isScreen =
+          clickedObject.name === "Plane008_Material002_0" ||
+          clickedObject === this.screenMesh ||
+          clickedObject.material?.map === this.terminalTexture ||
+          (clickedObject.name &&
+            clickedObject.name.toLowerCase().includes("screen"));
+
+        if (isScreen) {
+          console.log("Screen clicked - focusing terminal input");
+          if (terminalInput) {
+            terminalInput.focus();
+            this.isTerminalFocused = true;
+          }
+        } else {
+          console.log("Clicked on non-screen object - removing focus");
+          if (terminalInput) {
+            terminalInput.blur();
+            this.isTerminalFocused = false;
+          }
+        }
+      } else {
+        console.log("Clicked on empty space - removing focus");
+        if (terminalInput) {
+          terminalInput.blur();
+          this.isTerminalFocused = false;
+        }
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      const terminalInput = document.getElementById("terminal-input");
+
+      if (
+        !e.target.closest("#scene-container") &&
+        !e.target.closest("#terminal")
+      ) {
+        console.log("Clicked outside - removing focus");
+        if (terminalInput) {
+          terminalInput.blur();
+          this.isTerminalFocused = false;
+        }
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      const terminalInput = document.getElementById("terminal-input");
+
+      if (
+        terminalInput &&
+        this.isTerminalFocused &&
+        document.activeElement !== terminalInput &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        e.key.length === 1
+      ) {
+        terminalInput.focus();
+      }
+    });
+  }
+
+  animate() {
+    this.animationId = requestAnimationFrame(() => this.animate());
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  dispose() {
+    if (this.animationId) cancelAnimationFrame(this.animationId);
+    if (this.renderer) this.renderer.dispose();
+  }
+}
+</file>
+
+<file path="src/input/setup.rs">
+use crate::input::autoscroll::ensure_autoscroll;
+use crate::input::history::CommandHistory;
+use crate::terminal::Terminal;
+use crate::utils::{
+    dom::{append_line, clear_output},
+    panic::system_panic,
+};
+use js_sys::Promise;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
+use web_sys::{window, Event, HtmlTextAreaElement, KeyboardEvent};
+
+impl Terminal {
+    pub fn setup_input_system(&self) {
+        self.create_prompt_input_with_cursor();
+        self.show_prompt();
+        self.setup_auto_resize();
+        self.setup_typing_animation();
+        self.setup_key_handler();
+    }
+
+    fn create_prompt_input_with_cursor(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let body = doc.get_element_by_id("terminal-body").unwrap();
+
+        let prompt_div = doc.create_element("div").unwrap();
+        prompt_div.set_class_name("prompt-line");
+
+        let label = doc.create_element("span").unwrap();
+        label.set_class_name("prompt");
+        label.set_text_content(Some(&self.get_current_prompt()));
+
+        let input_wrapper = doc.create_element("div").unwrap();
+        input_wrapper.set_class_name("input-container");
+
+        let textarea = doc
+            .create_element("textarea")
+            .unwrap()
+            .dyn_into::<HtmlTextAreaElement>()
+            .unwrap();
+        textarea.set_id("terminal-input");
+        textarea.set_class_name("terminal-input-field");
+        textarea.set_attribute("autocomplete", "off").unwrap();
+        textarea.set_attribute("spellcheck", "false").unwrap();
+        textarea.set_attribute("rows", "1").unwrap();
+        textarea.set_attribute("wrap", "soft").unwrap();
+
+        input_wrapper.append_child(&textarea).unwrap();
+        prompt_div.append_child(&label).unwrap();
+        prompt_div.append_child(&input_wrapper).unwrap();
+        body.append_child(&prompt_div).unwrap();
+
+        ensure_autoscroll();
+    }
+
+    fn setup_auto_resize(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc.get_element_by_id("terminal-input").unwrap();
+        let clone = input.clone();
+
+        let on_input = Closure::wrap(Box::new(move |_e: Event| {
+            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
+                tx.style().set_property("height", "auto").unwrap();
+                let scroll_h = tx.scroll_height();
+                let line_h = 22;
+                let min_h = line_h;
+                let max_h = line_h * 10;
+                let h = scroll_h.max(min_h).min(max_h);
+                tx.style()
+                    .set_property("height", &format!("{}px", h))
+                    .unwrap();
+                let rows = (h / line_h).max(1);
+                tx.set_attribute("rows", &rows.to_string()).unwrap();
+            }
+        }) as Box<dyn FnMut(_)>);
+
+        input
+            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
+            .unwrap();
+        on_input.forget();
+    }
+
+    fn setup_typing_animation(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc.get_element_by_id("terminal-input").unwrap();
+        let clone = input.clone();
+
+        let on_input = Closure::wrap(Box::new(move |_e: Event| {
+            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
+                tx.set_class_name("terminal-input-field typing");
+                let tx_clone = tx.clone();
+                let rm_typing = Closure::wrap(Box::new(move || {
+                    tx_clone.set_class_name("terminal-input-field");
+                }) as Box<dyn FnMut()>);
+
+                window()
+                    .unwrap()
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                        rm_typing.as_ref().unchecked_ref(),
+                        150,
+                    )
+                    .unwrap();
+                rm_typing.forget();
+            }
+        }) as Box<dyn FnMut(_)>);
+
+        input
+            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
+            .unwrap();
+        on_input.forget();
+    }
+
+    fn setup_key_handler(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc
+            .get_element_by_id("terminal-input")
+            .unwrap()
+            .dyn_into::<HtmlTextAreaElement>()
+            .unwrap();
+        let out_el = self.output_element.clone();
+        let mut history = {
+            let mut h = CommandHistory::new(50);
+            for cmd in &["help", "clear", "ls"] {
+                h.add(cmd.to_string());
+            }
+            h
+        };
+        let mut processor = self.command_processor.clone();
+        let base_prompt = self.base_prompt.clone();
+        let clone_in = input.clone();
+
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let autocomplete = Rc::new(RefCell::new(
+            crate::terminal::autocomplete::AutoComplete::new(),
+        ));
+
+        let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
+            "Tab" => {
+                ev.prevent_default();
+                let current_input = clone_in.value();
+                let current_path = {
+                    use crate::commands::filesystem::CURRENT_PATH;
+                    CURRENT_PATH.lock().unwrap().clone()
+                };
+                let completion_result = autocomplete
+                    .borrow_mut()
+                    .complete(&current_input, &current_path);
+
+                match completion_result {
+                    crate::terminal::autocomplete::CompletionResult::Single(completion) => {
+                        let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
+                        if parts.len() <= 1 {
+                            clone_in.set_value(&format!("{} ", completion));
+                        } else {
+                            let mut new_parts = parts[..parts.len() - 1].to_vec();
+                            new_parts.push(&completion);
+                            clone_in.set_value(&format!("{} ", new_parts.join(" ")));
+                        }
+                        let text_length = clone_in.value().len() as u32;
+                        let _ = clone_in.set_selection_range(text_length, text_length);
+                    }
+                    crate::terminal::autocomplete::CompletionResult::Multiple(matches) => {
+                        let current_prompt = {
+                            let cwd = processor.get_current_directory();
+                            let display_path = if cwd == "/home/objz" {
+                                "~".to_string()
+                            } else if cwd.starts_with("/home/objz/") {
+                                format!("~{}", &cwd["/home/objz".len()..])
+                            } else {
+                                cwd
+                            };
+                            format!("{}:{}$ ", base_prompt, display_path)
+                        };
+                        let line = format!("{}{}", current_prompt, current_input);
+                        append_line(&out_el, &line, Some("command"));
+
+                        let matches_per_line = 4;
+                        let mut output = String::new();
+                        for chunk in matches.chunks(matches_per_line) {
+                            let row = chunk
+                                .iter()
+                                .map(|s| format!("{:<20}", s))
+                                .collect::<Vec<_>>()
+                                .join("");
+                            output.push_str(&row);
+                            output.push('\n');
+                        }
+                        for line in output.lines() {
+                            if !line.trim().is_empty() {
+                                append_line(&out_el, line, Some("completion"));
+                            }
+                        }
+                        if let Some(common) =
+                            crate::terminal::autocomplete::find_common_prefix(&matches)
+                        {
+                            let parts: Vec<&str> =
+                                current_input.trim().split_whitespace().collect();
+                            if parts.len() <= 1 && common.len() > current_input.trim().len() {
+                                clone_in.set_value(&common);
+                            } else if parts.len() > 1 {
+                                let prefix = parts[..parts.len() - 1].join(" ");
+                                clone_in.set_value(&format!("{} {}", prefix, common));
+                            }
+                        }
+                        ensure_autoscroll();
+                    }
+                    crate::terminal::autocomplete::CompletionResult::None => {}
+                }
+            }
+
+            "Enter" if !ev.shift_key() => {
+                ev.prevent_default();
+                let val = clone_in.value();
+                if !val.trim().is_empty() {
+                    history.add(val.clone());
+                }
+                clone_in.set_value("");
+                clone_in.style().set_property("height", "auto").unwrap();
+                clone_in.set_attribute("rows", "1").unwrap();
+
+                let current_prompt = {
+                    let cwd = processor.get_current_directory();
+                    let display_path = if cwd == "/home/objz" {
+                        "~".to_string()
+                    } else if cwd.starts_with("/home/objz/") {
+                        format!("~{}", &cwd["/home/objz".len()..])
+                    } else {
+                        cwd
+                    };
+                    format!("{}:{}$ ", base_prompt, display_path)
+                };
+
+                let line = format!("{}{}", current_prompt, val);
+                append_line(&out_el, &line, Some("command"));
+                ensure_autoscroll();
+
+                let (result, directory_changed) = processor.handle(&val);
+
+                match result.as_str() {
+                    "CLEAR_SCREEN" => clear_output(&out_el),
+                    "SYSTEM_PANIC" => {
+                        let out_clone = out_el.clone();
+                        spawn_local(async move {
+                            system_panic(&out_clone).await;
+                        });
+                    }
+                    _ => {
+                        let out_clone = out_el.clone();
+                        let lines: Vec<String> = result.lines().map(str::to_owned).collect();
+                        spawn_local(async move {
+                            for line in lines {
+                                append_line(&out_clone, &line, None);
+                                // ensure_autoscroll();
+                                let promise = Promise::new(&mut |resolve, _| {
+                                    window()
+                                        .unwrap()
+                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                            &resolve, 0,
+                                        )
+                                        .unwrap();
+                                });
+                                let _ = JsFuture::from(promise).await;
+                            }
+                        });
+                    }
+                }
+
+                if directory_changed {
+                    let doc = window().unwrap().document().unwrap();
+                    if let Some(prompt_el) = doc.query_selector(".prompt-line .prompt").unwrap() {
+                        let new_cwd = processor.get_current_directory();
+                        let new_display = if new_cwd == "/home/objz" {
+                            "~".to_string()
+                        } else if new_cwd.starts_with("/home/objz/") {
+                            format!("~{}", &new_cwd["/home/objz".len()..])
+                        } else {
+                            new_cwd
+                        };
+                        prompt_el
+                            .set_text_content(Some(&format!("{}:{}$ ", base_prompt, new_display)));
+                    }
+                }
+            }
+
+            "ArrowUp" => {
+                ev.prevent_default();
+                if let Some(cmd) = history.previous() {
+                    clone_in.set_value(&cmd);
+                    clone_in.focus().unwrap();
+                    let len = cmd.len() as u32;
+                    let _ = clone_in.set_selection_range(len, len);
+                    // clone for timeout instead of moving original
+                    let input_clone = clone_in.clone();
+                    let timeout = Closure::wrap(Box::new(move || {
+                        let _ = input_clone.set_selection_range(len, len);
+                    }) as Box<dyn FnMut()>);
+                    window()
+                        .unwrap()
+                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                            timeout.as_ref().unchecked_ref(),
+                            0,
+                        )
+                        .unwrap();
+                    timeout.forget();
+                }
+            }
+
+            "ArrowDown" => {
+                ev.prevent_default();
+                if let Some(cmd) = history.next() {
+                    clone_in.set_value(&cmd);
+                } else {
+                    clone_in.set_value("");
+                }
+            }
+            _ => {}
+        }) as Box<dyn FnMut(_)>);
+
+        input
+            .add_event_listener_with_callback("keydown", handler.as_ref().unchecked_ref())
+            .unwrap();
+        handler.forget();
+    }
+
+    fn show_prompt(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc
+            .get_element_by_id("terminal-input")
+            .unwrap()
+            .dyn_into::<HtmlTextAreaElement>()
+            .unwrap();
+        input.focus().unwrap();
+        ensure_autoscroll();
+    }
+}
+</file>
+
+<file path="src/terminal/renderer.rs">
+use crate::input::autoscroll::{ensure_autoscroll, trim_output};
+use crate::terminal::Terminal;
+use crate::utils::dom::append_line;
+
+impl Terminal {
+    pub async fn add_line_boot(&self, task: &str, status: &str, _color: &str) {
+        let div = self.create_div_element("", Some("boot-line"));
+        self.output_element.append_child(&div).unwrap();
+        ensure_autoscroll();
+
+        for i in 0..4 {
+            let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+            let text = format!("{} {}", task, spinner[i]);
+            div.set_inner_html(&text);
+            ensure_autoscroll();
+            self.sleep(60).await;
+        }
+
+        let final_html = if status.is_empty() {
+            task.to_string()
+        } else {
+            format!("{} <span class=\"status\">{}</span>", task, status)
+        };
+        div.set_inner_html(&final_html);
+        trim_output(self.height);
+        ensure_autoscroll();
+    }
+
+    pub async fn add_line_typing(&self, text: &str, speed: u32) {
+        let div = self.create_div_element("", None);
+        div.set_class_name("typing-line");
+        self.output_element.append_child(&div).unwrap();
+        ensure_autoscroll();
+
+        let mut buf = String::new();
+        for (i, ch) in text.chars().enumerate() {
+            buf.push(ch);
+            let display = if i < text.len() - 1 {
+                format!("{}<span class=\"typing-cursor\">█</span>", buf)
+            } else {
+                buf.clone()
+            };
+            div.set_inner_html(&display);
+            ensure_autoscroll();
+            self.sleep(speed as i32).await;
+        }
+        div.set_inner_html(&buf);
+        trim_output(self.height);
+        ensure_autoscroll();
+    }
+
+    pub async fn add_colored_line_typing(&self, text: &str, speed: u32, color: &str) {
+        let div = self.create_div_element("", Some(color));
+        div.set_class_name(&format!("typing-line {}", color));
+        self.output_element.append_child(&div).unwrap();
+        ensure_autoscroll();
+
+        let mut buf = String::new();
+        for (i, ch) in text.chars().enumerate() {
+            buf.push(ch);
+            let display = if i < text.len() - 1 {
+                format!("{}<span class=\"typing-cursor\">█</span>", buf)
+            } else {
+                buf.clone()
+            };
+            div.set_inner_html(&display);
+            ensure_autoscroll();
+            self.sleep(speed as i32).await;
+        }
+        div.set_inner_html(&buf);
+        trim_output(self.height);
+        ensure_autoscroll();
+    }
+
+    pub async fn add_line(&self, text: &str) {
+        append_line(&self.output_element, text, None);
+        ensure_autoscroll();
+    }
+
+    pub async fn add_line_colored(&self, text: &str, color: &str) {
+        append_line(&self.output_element, text, Some(color));
+        ensure_autoscroll();
+    }
+}
+</file>
+
+<file path="serve.sh">
+#!/bin/zsh
+./build.sh
+npx serve dist
+</file>
+
+<file path="src/commands/filesystem.rs">
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+#[derive(Clone, Debug)]
+pub enum Node {
+    File {
+        content: String,
+        permissions: u16,
+        owner: String,
+        protected: bool,
+    },
+    Directory {
+        children: HashMap<String, Node>,
+        permissions: u16,
+        owner: String,
+        protected: bool,
+    },
+    Symlink {
+        target: String,
+        owner: String,
+    },
+}
+
+impl Node {
+    fn _is_directory(&self) -> bool {
+        matches!(self, Node::Directory { .. })
+    }
+
+    fn _is_file(&self) -> bool {
+        matches!(self, Node::File { .. })
+    }
+
+    fn is_protected(&self) -> bool {
+        match self {
+            Node::File { protected, .. } => *protected,
+            Node::Directory { protected, .. } => *protected,
+            Node::Symlink { .. } => false,
+        }
+    }
+
+    fn get_owner(&self) -> &str {
+        match self {
+            Node::File { owner, .. } => owner,
+            Node::Directory { owner, .. } => owner,
+            Node::Symlink { owner, .. } => owner,
+        }
+    }
+}
+
+lazy_static! {
+    pub static ref FILESYSTEM: Mutex<Node> = Mutex::new({
+        use Node::*;
+        Directory {
+            permissions: 0o755,
+            owner: "root".to_string(),
+            protected: true,
+            children: HashMap::from([
+                (
+                    "home".into(),
+                    Directory {
+                        permissions: 0o755,
+                        owner: "root".to_string(),
+                        protected: false,
+                        children: HashMap::from([(
+                            "objz".into(),
+                            Directory {
+                                permissions: 0o755,
+                                owner: "objz".to_string(),
+                                protected: false,
+                                children: HashMap::from([
+                                    (
+                                        "projects".into(),
+                                        Directory {
+                                            permissions: 0o755,
+                                            owner: "objz".to_string(),
+                                            protected: true, // Protected!
+                                            children: HashMap::from([(
+                                                "readme.md".into(),
+                                                File {
+                                                    content: "# Projects\n\nThis is the projects folder.\nContains all my development work.".into(),
+                                                    permissions: 0o644,
+                                                    owner: "objz".to_string(),
+                                                    protected: true,
+                                                }
+                                            )]),
+                                        }
+                                    ),
+                                    (
+                                        "about.txt".into(),
+                                        File {
+                                            content: "I'm objz – a developer from Bavaria.\nI love Rust and WebAssembly!".into(),
+                                            permissions: 0o644,
+                                            owner: "objz".to_string(),
+                                            protected: true, // Protected!
+                                        }
+                                    ),
+                                    (
+                                        "contact.txt".into(),
+                                        File {
+                                            content: "Email: me@objz.dev\nGitHub: @objz\nLocation: Bavaria, Germany".into(),
+                                            permissions: 0o644,
+                                            owner: "objz".to_string(),
+                                            protected: true, // Protected!
+                                        }
+                                    ),
+                                    (
+                                        ".bashrc".into(),
+                                        File {
+                                            content: "# ~/.bashrc\nexport PS1='\\u@\\h:\\w\\$ '\nalias ll='ls -la'".into(),
+                                            permissions: 0o644,
+                                            owner: "objz".to_string(),
+                                            protected: false,
+                                        }
+                                    ),
+                                ]),
+                            }
+                        )]),
+                    }
+                ),
+                (
+                    "etc".into(),
+                    Directory {
+                        permissions: 0o755,
+                        owner: "root".to_string(),
+                        protected: true, // Protected!
+                        children: HashMap::from([(
+                            "hostname".into(),
+                            File {
+                                content: "wasm-host".into(),
+                                permissions: 0o644,
+                                owner: "root".to_string(),
+                                protected: true,
+                            }
+                        )]),
+                    }
+                ),
+                (
+                    "tmp".into(),
+                    Directory {
+                        permissions: 0o1777,
+                        owner: "root".to_string(),
+                        protected: false,
+                        children: HashMap::new(),
+                    }
+                ),
+                (
+                    "usr".into(),
+                    Directory {
+                        permissions: 0o755,
+                        owner: "root".to_string(),
+                        protected: true,
+                        children: HashMap::from([(
+                            "bin".into(),
+                            Directory {
+                                permissions: 0o755,
+                                owner: "root".to_string(),
+                                protected: true,
+                                children: HashMap::new(),
+                            }
+                        )]),
+                    }
+                ),
+            ])
+        }
+    });
+    pub static ref CURRENT_PATH: Mutex<Vec<String>> = Mutex::new(vec!["home".to_string(), "objz".to_string()]);
+    static ref CURRENT_USER: String = "anonym".to_string();
+}
+
+pub fn get_filesystem_entries(path: &[String], dirs_only: bool) -> Vec<String> {
+    let filesystem = FILESYSTEM.lock().unwrap();
+
+    match get_node_at_path(&filesystem, path) {
+        Some(Node::Directory { children, .. }) => {
+            let mut entries: Vec<String> = children
+                .iter()
+                .filter_map(|(name, node)| {
+                    if dirs_only {
+                        match node {
+                            Node::Directory { .. } => Some(format!("{}/", name)),
+                            _ => None,
+                        }
+                    } else {
+                        match node {
+                            Node::Directory { .. } => Some(format!("{}/", name)),
+                            Node::File { .. } => Some(name.clone()),
+                            Node::Symlink { .. } => Some(format!("{}@", name)),
+                        }
+                    }
+                })
+                .collect();
+
+            entries.sort();
+            entries
+        }
+        _ => Vec::new(),
+    }
+}
+
+pub fn normalize_path(path: &str, current: &[String]) -> Vec<String> {
+    if path.starts_with('/') {
+        let mut result = Vec::new();
+        for part in path.split('/').filter(|s| !s.is_empty()) {
+            match part {
+                "." => continue,
+                ".." => {
+                    result.pop();
+                }
+                _ => result.push(part.to_string()),
+            }
+        }
+        result
+    } else {
+        let mut result = current.to_vec();
+        for part in path.split('/').filter(|s| !s.is_empty()) {
+            match part {
+                "." => continue,
+                ".." => {
+                    result.pop();
+                }
+                _ => result.push(part.to_string()),
+            }
+        }
+        result
+    }
+}
+
+pub fn get_node_at_path<'a>(root: &'a Node, path: &[String]) -> Option<&'a Node> {
+    let mut current = root;
+    for part in path {
+        if let Node::Directory { children, .. } = current {
+            current = children.get(part)?;
+        } else {
+            return None;
+        }
+    }
+    Some(current)
+}
+
+fn get_node_at_path_mut<'a>(root: &'a mut Node, path: &[String]) -> Option<&'a mut Node> {
+    let mut current = root;
+    for part in path {
+        if let Node::Directory { children, .. } = current {
+            current = children.get_mut(part)?;
+        } else {
+            return None;
+        }
+    }
+    Some(current)
+}
+
+pub fn ls(args: &[&str]) -> String {
+    let filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+
+    let mut show_hidden = false;
+    let mut long_format = false;
+    let mut target_path = None;
+
+    for arg in args {
+        if arg.starts_with('-') {
+            for c in arg.chars().skip(1) {
+                match c {
+                    'a' => show_hidden = true,
+                    'l' => long_format = true,
+                    _ => return format!("ls: invalid option -- '{}'", c),
+                }
+            }
+        } else {
+            target_path = Some(*arg);
+        }
+    }
+
+    let path = if let Some(target) = target_path {
+        normalize_path(target, &current_path)
+    } else {
+        current_path.clone()
+    };
+
+    let node = match get_node_at_path(&filesystem, &path) {
+        Some(node) => node,
+        None => return "ls: cannot access: No such file or directory".into(),
+    };
+
+    match node {
+        Node::Directory { children, .. } => {
+            let mut entries: Vec<_> = children.iter().collect();
+            entries.sort_by_key(|(name, _)| name.as_str());
+
+            if long_format {
+                let mut output = String::new();
+                for (name, node) in &entries {
+                    if !show_hidden && name.starts_with('.') {
+                        continue;
+                    }
+
+                    let (file_type, permissions, size) = match node {
+                        Node::Directory { permissions, .. } => ('d', *permissions, 4096),
+                        Node::File {
+                            permissions,
+                            content,
+                            ..
+                        } => ('-', *permissions, content.len()),
+                        Node::Symlink { .. } => ('l', 0o777, 0),
+                    };
+
+                    output.push_str(&format!(
+                        "{}{:o} 1 objz objz {:>8} {} {}\n",
+                        file_type, permissions, size, "Jan  1 12:00", name
+                    ));
+                }
+                output
+            } else {
+                entries
+                    .iter()
+                    .filter(|(name, _)| show_hidden || !name.starts_with('.'))
+                    .map(|(name, node)| match node {
+                        Node::Directory { .. } => format!("{}/", name),
+                        Node::File { .. } => name.to_string(),
+                        Node::Symlink { .. } => format!("{}@", name),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("  ")
+            }
+        }
+        Node::File { .. } => target_path.unwrap_or(".").to_string(),
+        Node::Symlink { target, .. } => format!("-> {}", target),
+    }
+}
+
+pub fn cd(args: &[&str]) -> String {
+    if args.is_empty() {
+        {
+            let mut path = CURRENT_PATH.lock().unwrap();
+            *path = vec!["home".to_string(), "objz".to_string()];
+        }
+        return String::new();
+    }
+
+    let new_path = {
+        let filesystem = FILESYSTEM.lock().unwrap();
+        let current_path = CURRENT_PATH.lock().unwrap();
+
+        let new_path = normalize_path(args[0], &current_path);
+
+        match get_node_at_path(&filesystem, &new_path) {
+            Some(Node::Directory { .. }) => new_path,
+            Some(Node::Symlink { target, .. }) => {
+                let symlink_path = normalize_path(target, &current_path);
+                match get_node_at_path(&filesystem, &symlink_path) {
+                    Some(Node::Directory { .. }) => symlink_path,
+                    Some(_) => return format!("cd: {}: Not a directory", args[0]),
+                    None => return format!("cd: {}: No such file or directory", args[0]),
+                }
+            }
+            Some(_) => return format!("cd: {}: Not a directory", args[0]),
+            None => return format!("cd: {}: No such file or directory", args[0]),
+        }
+    };
+
+    {
+        let mut path = CURRENT_PATH.lock().unwrap();
+        *path = new_path;
+    }
+    String::new()
+}
+
+pub fn pwd(_: &[&str]) -> String {
+    let path = CURRENT_PATH.lock().unwrap();
+    if path.is_empty() {
+        "/".into()
+    } else {
+        format!("/{}", path.join("/"))
+    }
+}
+
+pub fn cat(args: &[&str]) -> String {
+    if args.is_empty() {
+        return "cat: missing file operand".into();
+    }
+
+    let filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+
+    let mut output = String::new();
+
+    for &filename in args {
+        let file_path = normalize_path(filename, &current_path);
+
+        match get_node_at_path(&filesystem, &file_path) {
+            Some(Node::File { content, .. }) => {
+                output.push_str(content);
+                if args.len() > 1 && filename != args[args.len() - 1] {
+                    output.push('\n');
+                }
+            }
+            Some(Node::Directory { .. }) => {
+                output.push_str(&format!("cat: {}: Is a directory\n", filename));
+            }
+            Some(Node::Symlink { target, .. }) => {
+                output.push_str(&format!(
+                    "cat: {}: Symbolic link (points to {})\n",
+                    filename, target
+                ));
+            }
+            None => {
+                output.push_str(&format!("cat: {}: No such file or directory\n", filename));
+            }
+        }
+    }
+
+    output.trim_end().to_string()
+}
+
+pub fn mkdir(args: &[&str]) -> String {
+    if args.is_empty() {
+        return "mkdir: missing operand".into();
+    }
+
+    let mut filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
+
+    for &dirname in args {
+        let dir_path = normalize_path(dirname, &current_path);
+
+        if dir_path.is_empty() {
+            return "mkdir: cannot create directory '/': File exists".into();
+        }
+
+        let parent_path = &dir_path[..dir_path.len() - 1];
+        let dir_name = &dir_path[dir_path.len() - 1];
+
+        let parent = match get_node_at_path_mut(&mut filesystem, parent_path) {
+            Some(Node::Directory { children, .. }) => children,
+            Some(_) => {
+                return format!(
+                    "mkdir: cannot create directory '{}': Not a directory",
+                    dirname
+                )
+            }
+            None => {
+                return format!(
+                    "mkdir: cannot create directory '{}': No such file or directory",
+                    dirname
+                )
+            }
+        };
+
+        if parent.contains_key(dir_name) {
+            return format!("mkdir: cannot create directory '{}': File exists", dirname);
+        }
+
+        parent.insert(
+            dir_name.clone(),
+            Node::Directory {
+                permissions: 0o755,
+                owner: current_user.clone(),
+                protected: false,
+                children: HashMap::new(),
+            },
+        );
+    }
+
+    String::new()
+}
+
+pub fn touch(args: &[&str]) -> String {
+    if args.is_empty() {
+        return "touch: missing file operand".into();
+    }
+
+    let mut filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
+
+    for &filename in args {
+        let file_path = normalize_path(filename, &current_path);
+
+        if file_path.is_empty() {
+            continue;
+        }
+
+        let parent_path = &file_path[..file_path.len() - 1];
+        let file_name = &file_path[file_path.len() - 1];
+
+        let parent = match get_node_at_path_mut(&mut filesystem, parent_path) {
+            Some(Node::Directory { children, .. }) => children,
+            Some(_) => return format!("touch: cannot touch '{}': Not a directory", filename),
+            None => {
+                return format!(
+                    "touch: cannot touch '{}': No such file or directory",
+                    filename
+                )
+            }
+        };
+
+        if !parent.contains_key(file_name) {
+            parent.insert(
+                file_name.clone(),
+                Node::File {
+                    content: String::new(),
+                    permissions: 0o644,
+                    owner: current_user.clone(),
+                    protected: false,
+                },
+            );
+        }
+    }
+
+    String::new()
+}
+
+pub fn rm(args: &[&str]) -> String {
+    if args.is_empty() {
+        return "rm: missing operand".into();
+    }
+
+    let mut filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
+
+    let mut recursive = false;
+    let mut force = false;
+    let mut files = Vec::new();
+
+    for &arg in args {
+        if arg.starts_with('-') {
+            for c in arg.chars().skip(1) {
+                match c {
+                    'r' | 'R' => recursive = true,
+                    'f' => force = true,
+                    _ => return format!("rm: invalid option -- '{}'", c),
+                }
+            }
+        } else {
+            files.push(arg);
+        }
+    }
+
+    for filename in files {
+        let file_path = normalize_path(filename, &current_path);
+
+        if file_path.is_empty() {
+            if !force {
+                return "rm: cannot remove '/': Permission denied".into();
+            }
+            continue;
+        }
+
+        let parent_path = &file_path[..file_path.len() - 1];
+        let file_name = &file_path[file_path.len() - 1];
+
+        let parent = match get_node_at_path_mut(&mut filesystem, parent_path) {
+            Some(Node::Directory { children, .. }) => children,
+            Some(_) => {
+                if !force {
+                    return format!("rm: cannot remove '{}': Not a directory", filename);
+                }
+                continue;
+            }
+            None => {
+                if !force {
+                    return format!(
+                        "rm: cannot remove '{}': No such file or directory",
+                        filename
+                    );
+                }
+                continue;
+            }
+        };
+
+        match parent.get(file_name) {
+            Some(node) => {
+                if node.is_protected() {
+                    return format!(
+                        "rm: cannot remove '{}': Operation not permitted (protected system file)",
+                        filename
+                    );
+                }
+
+                if node.get_owner() != current_user && current_user != "root" {
+                    return format!(
+                        "rm: cannot remove '{}': Permission denied (not owner)",
+                        filename
+                    );
+                }
+
+                match node {
+                    Node::Directory { .. } => {
+                        if !recursive {
+                            if !force {
+                                return format!("rm: cannot remove '{}': Is a directory", filename);
+                            }
+                            continue;
+                        }
+                        parent.remove(file_name);
+                    }
+                    Node::File { .. } | Node::Symlink { .. } => {
+                        parent.remove(file_name);
+                    }
+                }
+            }
+            None => {
+                if !force {
+                    return format!(
+                        "rm: cannot remove '{}': No such file or directory",
+                        filename
+                    );
+                }
+            }
+        }
+    }
+
+    String::new()
+}
+
+pub fn tree(args: &[&str]) -> String {
+    let filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+
+    let start_path = if args.is_empty() {
+        current_path.clone()
+    } else {
+        normalize_path(args[0], &current_path)
+    };
+
+    let start_node = match get_node_at_path(&filesystem, &start_path) {
+        Some(node) => node,
+        None => return "tree: No such file or directory".into(),
+    };
+
+    fn build_tree(node: &Node, prefix: &str, _is_last: bool) -> String {
+        let mut output = String::new();
+
+        if let Node::Directory { children, .. } = node {
+            let mut entries: Vec<_> = children.iter().collect();
+            entries.sort_by_key(|(name, _)| name.as_str());
+
+            for (i, (name, child)) in entries.iter().enumerate() {
+                let is_last_child = i == entries.len() - 1;
+                let connector = if is_last_child {
+                    "└── "
+                } else {
+                    "├── "
+                };
+
+                let display_name = match child {
+                    Node::Directory { .. } => format!("{}/", name),
+                    Node::File { .. } => name.to_string(),
+                    Node::Symlink { target, .. } => format!("{} -> {}", name, target),
+                };
+
+                output.push_str(&format!("{}{}{}\n", prefix, connector, display_name));
+
+                let new_prefix =
+                    format!("{}{}", prefix, if is_last_child { "    " } else { "│   " });
+
+                output.push_str(&build_tree(child, &new_prefix, is_last_child));
+            }
+        }
+
+        output
+    }
+
+    let tree_name = if start_path.is_empty() {
+        "/".to_string()
+    } else {
+        start_path.last().unwrap_or(&"/".to_string()).clone()
+    };
+
+    format!("{}\n{}", tree_name, build_tree(start_node, "", true))
+}
+
+pub fn ln(args: &[&str]) -> String {
+    if args.len() < 2 {
+        return "ln: missing file operand".into();
+    }
+
+    let mut filesystem = FILESYSTEM.lock().unwrap();
+    let current_path = CURRENT_PATH.lock().unwrap();
+    let current_user = &*CURRENT_USER;
+
+    let (target, link_name) = if args[0] == "-s" {
+        if args.len() < 3 {
+            return "ln: missing file operand".into();
+        }
+        (args[1], args[2])
+    } else {
+        return "ln: hard links not supported in this filesystem".into();
+    };
+
+    let link_path = normalize_path(link_name, &current_path);
+
+    if link_path.is_empty() {
+        return "ln: cannot create link '/': File exists".into();
+    }
+
+    let parent_path = &link_path[..link_path.len() - 1];
+    let file_name = &link_path[link_path.len() - 1];
+
+    let parent = match get_node_at_path_mut(&mut filesystem, parent_path) {
+        Some(Node::Directory { children, .. }) => children,
+        Some(_) => return format!("ln: cannot create link '{}': Not a directory", link_name),
+        None => {
+            return format!(
+                "ln: cannot create link '{}': No such file or directory",
+                link_name
+            )
+        }
+    };
+
+    if parent.contains_key(file_name) {
+        return format!("ln: cannot create link '{}': File exists", link_name);
+    }
+
+    parent.insert(
+        file_name.clone(),
+        Node::Symlink {
+            target: target.to_string(),
+            owner: current_user.clone(),
+        },
+    );
+
+    String::new()
+}
+
+pub fn uname(args: &[&str]) -> String {
+    if args.is_empty() || args[0] == "-s" {
+        "WASM".to_string()
+    } else if args[0] == "-a" {
+        "WASM wasm-host 1.0.0 #1 SMP PREEMPT_DYNAMIC Mon Jan 1 12:00:00 UTC 2024 wasm32 GNU/Linux"
+            .to_string()
+    } else {
+        "uname: invalid option".to_string()
+    }
+}
+</file>
+
+<file path="src/commands/misc.rs">
+pub fn help(_args: &[&str]) -> String {
+    r#"Available commands:
+
+System Info:
+  uname       - System information
+  uptime      - System uptime
+  neofetch    - Detailed system info
+  date        - Current date and time
+
+File System:
+  ls, ll      - List directory contents
+  cd          - Change directory
+  pwd         - Print working directory
+  cat         - Display file contents
+  tree        - Display directory tree
+  mkdir       - Create directory
+  touch       - Create empty file
+  rm          - Remove files/directories
+  ln          - Create symbolic links
+
+Utilities:
+  clear       - Clear screen
+  history     - Command history
+  echo        - Display text
+  cowsay      - ASCII cow with message
+  sl          - Steam locomotive
+  lolcat      - Rainbow text
+  calc        - Calculator
+  sudo        - Sudo access
+
+
+Type `ls`, then `cd projects` and `ls` again.  
+Run a project with `./project-name`.""#
+        .to_string()
+}
+
+pub fn sudo(args: &[&str]) -> String {
+    if args.len() >= 3 && args[0] == "rm" && args[1] == "-rf" && args[2] == "/" {
+        "SYSTEM_PANIC".to_string()
+    } else {
+        "[sudo] password for objz: \n\nSorry, try again.\n[sudo] password for objz: \n\nSudo access denied for portfolio demo.".to_string()
+    }
+}
+
+pub fn cowsay(args: &[&str]) -> String {
+    let message = if args.is_empty() {
+        "Hello from WASM!"
+    } else {
+        &args.join(" ")
+    };
+
+    let bubble_line = "-".repeat(message.len() + 2);
+
+    format!(
+        r#" {}
+< {} >
+ {}
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||"#,
+        bubble_line, message, bubble_line
+    )
+}
+
+pub fn sl(_args: &[&str]) -> String {
+    r#"                 (@@) (  ) (@)  ( )  @@    ()    @     O     @     O      @
+            (   )
+        (@@@@)
+     (    )
+
+   (@@@)
+====        ________                ___________
+_D _|  |_______/        \__I_I_____===__|_________|
+ |(_)---  |   H\________/ |   |        =|___ ___|      _________________
+ /     |  |   H  |  |     |   |         ||_| |_||     _|                \_____A
+|      |  |   H  |__--------------------| [___] |   =|                        |
+| ________|___H__/__|_____/[][]~\_______|       |   -|                        |
+|/ |   |-----------I_____I [][] []  D   |=======|____|________________________|_
+__/ =| o |=-~O=====O=====O=====O\ ____Y___________|__|__________________________|_
+ |/-=|___|=    ||    ||    ||    |_____/~\___/          |_D__D__D_|  |_D__D__D_|
+  \_/      \__/  \__/  \__/  \__/      \_/               \_/   \_/    \_/   \_/
+
+You have new mail."#
+        .to_string()
+}
+
+pub fn lolcat(args: &[&str]) -> String {
+    if args.is_empty() {
+        "Usage: lolcat <text>".to_string()
+    } else {
+        format!("🌈 {} 🌈", args.join(" "))
+    }
+}
+
+pub fn calc(args: &[&str]) -> String {
+    if args.is_empty() {
+        return "Usage: calc <expression>\nExample: calc 2 + 2".to_string();
+    }
+
+    let expression = args.join(" ");
+
+    if let Some(result) = evaluate(&expression) {
+        format!("{} = {}", expression, result)
+    } else {
+        format!("Error: Cannot evaluate '{}'", expression)
+    }
+}
+
+fn evaluate(expr: &str) -> Option<f64> {
+    let parts: Vec<&str> = expr.split_whitespace().collect();
+
+    if parts.len() == 3 {
+        if let (Ok(a), Ok(b)) = (parts[0].parse::<f64>(), parts[2].parse::<f64>()) {
+            match parts[1] {
+                "+" => Some(a + b),
+                "-" => Some(a - b),
+                "*" => Some(a * b),
+                "/" if b != 0.0 => Some(a / b),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+</file>
+
+<file path="src/commands/processor.rs">
+use crate::commands::{filesystem, system};
+
+use super::misc;
+
+#[derive(Clone)]
+pub struct CommandHandler {
+    history: Vec<String>,
+}
+
+impl CommandHandler {
+    pub fn new() -> Self {
+        Self {
+            history: Vec::new(),
+        }
+    }
+
+    pub fn get_current_directory(&self) -> String {
+        filesystem::pwd(&[])
+    }
+
+    pub fn handle(&mut self, input: &str) -> (String, bool) {
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return (String::new(), false);
+        }
+
+        self.history.push(trimmed.to_string());
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        let cmd = parts[0];
+        let args = &parts[1..];
+
+        let directory_changed = cmd == "cd";
+
+        let output = match cmd {
+            "clear" => system::clear(args),
+            "history" => self.show_history(args),
+            "echo" => system::echo(args),
+            "date" => system::date(args),
+            "uptime" => system::uptime(args),
+            "neofetch" => system::neofetch(args),
+
+            "ls" => filesystem::ls(args),
+            "cd" => filesystem::cd(args),
+            "cat" => filesystem::cat(args),
+            "pwd" => filesystem::pwd(args),
+            "tree" => filesystem::tree(args),
+            "mkdir" => filesystem::mkdir(args),
+            "touch" => filesystem::touch(args),
+            "rm" => filesystem::rm(args),
+            "uname" => filesystem::uname(args),
+            "ln" => filesystem::ln(args),
+            "ll" => filesystem::ls(&["-la"]),
+
+            "help" => misc::help(args),
+            "sudo" => misc::sudo(args),
+            "cowsay" => misc::cowsay(args),
+            "sl" => misc::sl(args),
+            "lolcat" => misc::lolcat(args),
+            "calc" => misc::calc(args),
+
+            _ => format!("zsh: {}: command not found", cmd),
+        };
+
+        (output, directory_changed)
+    }
+
+    fn show_history(&self, _args: &[&str]) -> String {
+        if self.history.is_empty() {
+            "No commands in history yet.".to_string()
+        } else {
+            self.history
+                .iter()
+                .enumerate()
+                .map(|(i, cmd)| format!("  {}  {}", i + 1, cmd))
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+    }
+}
+</file>
+
+<file path="Cargo.toml">
+[package]
+name = "portfolio"
+version = "0.1.0"
+authors = ["objz <me@objz.dev>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = "0.2.84"
+wasm-bindgen-futures = "0.4.37"
+js-sys = "0.3.61"
+console_error_panic_hook = { version = "0.1.7", optional = true }
+lazy_static = "1.5.0"
+
+[dependencies.web-sys]
+version = "0.3.61"
+features = [
+  "console",
+  "Document",
+  "Element",
+  "HtmlElement",
+  "HtmlInputElement",
+  "HtmlTextAreaElement",
+  "KeyboardEvent",
+  "Window",
+  "EventTarget",
+  "Event",
+  "CssStyleDeclaration",
+]
+
+[profile.release]
+opt-level = "s"
+</file>
+
+<file path="static/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>objz@portfolio:~$ _</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../style/styles.css" />
+  </head>
+  <body>
+    <!-- Loading Screen -->
+    <div id="loading">
+      <div class="loading-text">Initializing...</div>
+      <div class="loading-bar">
+        <div class="loading-progress" id="loading-progress"></div>
+      </div>
+    </div>
+
+    <div id="scene-container"></div>
+
+    <div id="terminal">
+      <div id="terminal-body">
+        <div id="terminal-output"></div>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module" src="../js/index.js"></script>
+  </body>
+</html>
+</file>
+
+<file path="src/lib.rs">
+use commands::system;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
+use web_sys::window;
+
+mod ascii_art;
+mod boot;
+mod commands;
+mod input;
+mod terminal;
+mod utils;
+
+use terminal::Terminal;
+
+#[wasm_bindgen(start)]
+pub fn main() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+
+    system::init();
+
+    let window = window().unwrap();
+    let document = window.document().unwrap();
+
+    let term = Terminal::new(&document);
+    spawn_local(async move {
+        term.start_intro().await;
+        term.start_shell().await;
+    });
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+#[wasm_bindgen]
+pub fn greet() {
+    log("Terminal loaded");
+}
+</file>
+
+<file path="style/styles.css">
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  color: #e6e6e6;
+  font-family:
+    "JetBrains Mono", "Fira Code", "Source Code Pro", "Consolas", monospace;
+  overflow: hidden;
+}
+
+/* 3D Scene Styles */
+#scene-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+}
+
+/* Loading Screen */
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: #8be9fd;
+  font-family: "JetBrains Mono", monospace;
+  transition: opacity 0.5s ease;
+}
+
+#loading.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-text {
+  font-size: 18px;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
+}
+
+.loading-bar {
+  background: #333;
+  border-radius: 2px;
+  overflow: hidden;
+  width: 300px;
+  height: 4px;
+  margin-top: 20px;
+}
+
+.loading-progress {
+  background: linear-gradient(90deg, #8be9fd, #50fa7b);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
+  height: 100%;
+  width: 0%;
+}
+
+/* Terminal Styles */
+#terminal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1024px;
+  height: 768px;
+  z-index: 1;
+  visibility: hidden;
+  background: #0a0a0a;
+  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  border: 2px solid #333;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 20px;
+}
+
+#terminal.texture-mode {
+  visibility: visible;
+  opacity: 1;
+  z-index: 1;
+  /* Position off-screen for html2canvas but keep it accessible */
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  transform: none;
+}
+
+/* Terminal display copy for html2canvas */
+#terminal-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1024px;
+  height: 768px;
+  z-index: 1;
+  background: #0a0a0a;
+  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  border: 2px solid #333;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 20px;
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Remove terminal header completely */
+#terminal-header {
+  display: none;
+}
+
+#terminal-body {
+  flex: 1;
+  overflow-y: auto;
+  background: transparent;
+  scroll-behavior: smooth;
+  max-height: 100%;
+}
+
+/* Enable scrollbar interactions */
+#terminal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+#terminal-body::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+#terminal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #333 0%, #555 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
+  transition: all 0.3s ease;
+}
+
+#terminal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #444 0%, #666 100%);
+  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+}
+
+#terminal-output {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #e6e6e6;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+/* Prompt Styling */
+.prompt-line {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.prompt {
+  color: #8be9fd;
+  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
+  font-weight: bold;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Input container and textarea interactions */
+.input-container {
+  flex: 1;
+  pointer-events: auto;
+}
+
+.terminal-input-field {
+  background: transparent;
+  border: none;
+  color: #e6e6e6;
+  caret-color: #ffffff;
+  outline: none;
+  resize: none;
+  width: 100%;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 16px;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+
+.terminal-input-field:focus {
+  caret-color: #8be9fd;
+  animation: caretBlink 1s infinite;
+}
+
+/* Visual feedback when terminal is focused */
+#terminal:has(.terminal-input-field:focus) {
+  box-shadow: 0 0 30px rgba(139, 233, 253, 0.6);
+  border-color: #8be9fd;
+}
+
+/* Animations */
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes caretBlink {
+  0%,
+  50% {
+    caret-color: #8be9fd;
+  }
+  51%,
+  100% {
+    caret-color: transparent;
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    text-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    text-shadow:
+      0 0 20px currentColor,
+      0 0 30px currentColor;
+  }
+}
+
+/* Command styling */
+.command {
+  color: #8be9fd;
+  font-family: "JetBrains Mono", monospace;
+}
+.error {
+  color: #ff5555;
+  font-family: "JetBrains Mono", monospace;
+}
+.success {
+  color: #50fa7b;
+  font-family: "JetBrains Mono", monospace;
+}
+.warning {
+  color: #ffb86c;
+  font-family: "JetBrains Mono", monospace;
+}
+.info {
+  color: #bd93f9;
+  font-family: "JetBrains Mono", monospace;
+}
+.completion {
+  color: #f1fa8c;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  body {
+    font-size: 12px;
+  }
+  #terminal,
+  #terminal-display {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    height: 70vh;
+  }
+  #terminal-body {
+  }
+  .prompt-line {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .input-container {
+    pointer-events: auto;
+  }
+}
+
+/* Ensure proper layering */
+#scene-container canvas {
+  display: block;
+}
+</file>
+
+<file path="README.md">
+Hi ![](https://user-images.githubusercontent.com/18350557/176309783-0785949b-9127-417c-8b55-ab5a4333674e.gif) My name is Consti
+==============================================================================================================================
+
+* I'm based in Bavaria - Germany
+* I'm currently working on [CommandBridge](https://github.com/72-S/CommandBridge) and [mcl](https://github.com/72-S/mcl)
+
+### Skills
+[![My Skills](https://skillicons.dev/icons?i=c,cpp,rust,java,linux,arch,neovim)](https://skillicons.dev)
+
+
+<img src="https://raw.githubusercontent.com/72-S/72-S/output/snake.svg" alt="Snake animation" />
+</file>
+
+</files>
