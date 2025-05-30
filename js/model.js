@@ -176,7 +176,7 @@ export class Terminal3D {
     this.terminalTexture = new THREE.CanvasTexture(this.terminalCanvas);
     this.terminalTexture.minFilter = THREE.LinearFilter;
     this.terminalTexture.magFilter = THREE.LinearFilter;
-    this.terminalTexture.flipY = false; // Canvas is already correct orientation
+    this.terminalTexture.flipY = true; // Canvas is already correct orientation
 
     // Apply texture to screen mesh
     if (this.screenMesh) {

@@ -1,7 +1,7 @@
 use crate::input::history::CommandHistory;
+use crate::terminal::renderer::LineOptions;
 use crate::terminal::Terminal;
 use crate::utils::panic;
-use crate::{input::autoscroll::ensure_autoscroll, terminal::renderer::LineOptions};
 use js_sys::Promise;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -42,8 +42,6 @@ impl Terminal {
         prompt_div.append_child(&label).unwrap();
         prompt_div.append_child(&textarea).unwrap();
         self.canvas.append_child(&prompt_div).unwrap();
-
-        ensure_autoscroll();
     }
 
     fn setup_input_handlers(&self) {
@@ -235,7 +233,6 @@ impl Terminal {
                         input.set_value(&format!("{} {}", prefix, common));
                     }
                 }
-                ensure_autoscroll();
             }
 
             crate::terminal::autocomplete::CompletionResult::None => {}
@@ -267,7 +264,6 @@ impl Terminal {
                 .add_line(&line, Some(LineOptions::new().with_color("command")))
                 .await;
         });
-        ensure_autoscroll();
 
         let (result, directory_changed) = processor.handle(&val);
 
@@ -393,6 +389,5 @@ impl Terminal {
             .dyn_into::<HtmlTextAreaElement>()
             .unwrap();
         input.focus().unwrap();
-        ensure_autoscroll();
     }
 }

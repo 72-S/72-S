@@ -1,4 +1,4 @@
-use crate::input::autoscroll::{ensure_autoscroll, trim_output};
+use crate::input::autoscroll::{add_line_to_buffer, trim_output, LineType};
 use crate::terminal::Terminal;
 use wasm_bindgen::JsValue;
 
@@ -51,7 +51,6 @@ impl Terminal {
             let text = format!("{} {}", task, spin_char);
             self.clear_line_at_y(current_y);
             self.draw_text(&text, current_y, opts.color.as_deref());
-            ensure_autoscroll();
             self.sleep(60).await;
         }
 
@@ -59,9 +58,12 @@ impl Terminal {
         self.clear_line_at_y(current_y);
         self.draw_boot_line(&final_text, current_y, opts.color.as_deref());
 
+        // Add the final line to the buffer for scrolling (with LineType::Boot)
+        add_line_to_buffer(final_text, opts.color.clone(), LineType::Boot);
+
         self.advance_y();
         trim_output(self.height);
-        ensure_autoscroll();
+        self.handle_scroll_if_needed();
     }
 
     async fn typing(&self, text: &str, speed: u32, opts: &LineOptions) {
@@ -86,21 +88,22 @@ impl Terminal {
                 opts.color.as_deref(),
                 i < chars.len() - 1,
             );
-            ensure_autoscroll();
             self.sleep(speed as i32).await;
         }
 
         self.clear_line_at_y(current_y);
         self.draw_text(&buf, current_y, opts.color.as_deref());
 
+        // Add the final typed line to the buffer (with LineType::Typing)
+        add_line_to_buffer(buf, opts.color.clone(), LineType::Typing);
+
         self.advance_y();
         trim_output(self.height);
-        ensure_autoscroll();
+        self.handle_scroll_if_needed();
     }
 
     async fn simple(&self, text: &str, opts: &LineOptions) {
         self.append_line(text, opts.color.as_deref());
-        ensure_autoscroll();
     }
 
     fn set_fill_color(&self, color: &str) {
@@ -172,20 +175,28 @@ impl Terminal {
         }
 
         if has_cursor {
-            let text_without_cursor = &text[..text.len() - 1];
-            let cursor = "█";
+            // Fixed: Handle Unicode characters properly
+            let chars: Vec<char> = text.chars().collect();
+            if chars.len() > 0 && chars[chars.len() - 1] == '█' {
+                // Remove the cursor character properly
+                let text_without_cursor: String = chars[..chars.len() - 1].iter().collect();
+                let cursor = "█";
 
-            self.context
-                .fill_text(text_without_cursor, 10.0, y)
-                .unwrap();
+                self.context
+                    .fill_text(&text_without_cursor, 10.0, y)
+                    .unwrap();
 
-            let char_width = 8.4;
-            let text_width = text_without_cursor.len() as f64 * char_width;
+                let char_width = 8.4;
+                let text_width = text_without_cursor.chars().count() as f64 * char_width;
 
-            self.set_fill_color("#00ff00");
-            self.context
-                .fill_text(cursor, 10.0 + text_width, y)
-                .unwrap();
+                self.set_fill_color("#00ff00");
+                self.context
+                    .fill_text(cursor, 10.0 + text_width, y)
+                    .unwrap();
+            } else {
+                // Fallback: just draw the text as-is
+                self.context.fill_text(text, 10.0, y).unwrap();
+            }
         } else {
             self.context.fill_text(text, 10.0, y).unwrap();
         }
@@ -201,7 +212,7 @@ impl Terminal {
         self.context.restore();
     }
 
-    fn get_color_value(&self, color: &str) -> String {
+    pub fn get_color_value(&self, color: &str) -> String {
         match color {
             "red" => "#ff0000".to_string(),
             "green" => "#00ff00".to_string(),
@@ -230,9 +241,74 @@ impl Terminal {
 
     fn append_line(&self, text: &str, color: Option<&str>) {
         let current_y = self.y.get();
+
+        // Add to buffer with LineType::Normal
+        add_line_to_buffer(
+            text.to_string(),
+            color.map(|c| c.to_string()),
+            LineType::Normal,
+        );
+
         self.draw_text(text, current_y, color);
         self.advance_y();
         trim_output(self.height);
+        self.handle_scroll_if_needed();
+    }
+
+    // Add method to handle automatic scrolling
+    fn handle_scroll_if_needed(&self) {
+        let max_lines = (self.height as f64 / self.line_height) as i32;
+        let current_line = ((self.y.get() - 20.0) / self.line_height) as i32;
+
+        if current_line >= max_lines - 1 {
+            // Need to scroll - redraw all buffered lines
+            self.redraw_all_lines();
+        }
+    }
+
+    // Method to redraw all lines from buffer (for scrolling)
+    fn redraw_all_lines(&self) {
+        // Clear canvas
+        self.clear_output_no_buffer_clear();
+
+        // Get all lines from buffer
+        let lines = crate::input::autoscroll::get_terminal_lines();
+
+        // Reset Y position
+        self.y.set(20.0);
+
+        // Redraw each line
+        for line in lines {
+            let current_y = self.y.get();
+
+            match line.line_type {
+                LineType::Boot => {
+                    self.draw_boot_line(&line.text, current_y, line.color.as_deref());
+                }
+                LineType::Typing => {
+                    self.draw_text(&line.text, current_y, line.color.as_deref());
+                }
+                LineType::Normal => {
+                    self.draw_text(&line.text, current_y, line.color.as_deref());
+                }
+                LineType::Prompt => {
+                    self.draw_text(&line.text, current_y, line.color.as_deref());
+                }
+            }
+
+            self.advance_y();
+        }
+    }
+
+    // Clear output without clearing buffer (for internal use)
+    fn clear_output_no_buffer_clear(&self) {
+        self.context.save();
+        self.set_fill_color("#000000");
+        self.context
+            .fill_rect(0.0, 0.0, self.width as f64, self.height as f64);
+        self.context.restore();
+
+        self.y.set(20.0);
     }
 
     pub fn clear_output(&self) {
@@ -243,5 +319,24 @@ impl Terminal {
         self.context.restore();
 
         self.y.set(20.0);
+
+        crate::input::autoscroll::clear_terminal_buffer();
+    }
+
+    // Add method to add a prompt line
+    pub fn add_prompt_line(&self, prompt: &str) {
+        let current_y = self.y.get();
+
+        // Add to buffer with LineType::Prompt
+        add_line_to_buffer(
+            prompt.to_string(),
+            Some("cyan".to_string()),
+            LineType::Prompt,
+        );
+
+        self.draw_text(prompt, current_y, Some("cyan"));
+        self.advance_y();
+        trim_output(self.height);
+        self.handle_scroll_if_needed();
     }
 }

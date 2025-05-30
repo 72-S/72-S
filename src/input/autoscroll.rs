@@ -1,39 +1,89 @@
-use wasm_bindgen::prelude::*;
-use web_sys::window;
+use std::cell::RefCell;
+use std::collections::VecDeque;
 
-pub fn ensure_autoscroll() {
-    if let Some(window) = window() {
-        if let Some(doc) = window.document() {
-            if let Some(body) = doc.get_element_by_id("terminal-body") {
-                body.set_scroll_top(body.scroll_height());
-
-                let _ =
-                    js_sys::eval("if (window.objzEnsureAutoscroll) window.objzEnsureAutoscroll();");
-
-                let body_clone = body.clone();
-                let closure = Closure::once_into_js(Box::new(move || {
-                    body_clone.set_scroll_top(body_clone.scroll_height());
-                }) as Box<dyn FnOnce()>);
-
-                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-                    closure.as_ref().unchecked_ref(),
-                    0,
-                );
-            }
-        }
-    }
+// Terminal line with its properties
+#[derive(Clone)]
+pub struct TerminalLine {
+    pub text: String,
+    pub color: Option<String>,
+    pub line_type: LineType,
 }
 
-pub fn trim_output(max_height: i32) {
-    if let Some(doc) = window().unwrap().document() {
-        if let Some(output) = doc.get_element_by_id("terminal-output") {
-            let output_el: web_sys::HtmlElement = output.unchecked_into();
-            while output_el.scroll_height() > max_height && output_el.child_element_count() > 1 {
-                let first = output_el.first_element_child();
-                if let Some(f) = first {
-                    let _ = output_el.remove_child(&f);
-                }
-            }
+#[derive(Clone)]
+pub enum LineType {
+    Normal,
+    Boot,
+    Typing,
+    Prompt,
+}
+
+// Store terminal lines for scrolling
+thread_local! {
+    static TERMINAL_LINES: RefCell<VecDeque<TerminalLine>> = RefCell::new(VecDeque::new());
+    static MAX_LINES: RefCell<usize> = RefCell::new(25);
+}
+
+pub fn trim_output(canvas_height: i32) {
+    let line_height = 20.0;
+    let max_visible_lines = ((canvas_height as f64 - 40.0) / line_height) as usize;
+
+    MAX_LINES.with(|max| {
+        *max.borrow_mut() = max_visible_lines;
+    });
+
+    TERMINAL_LINES.with(|lines| {
+        let mut lines_mut = lines.borrow_mut();
+        while lines_mut.len() > max_visible_lines {
+            lines_mut.pop_front();
         }
-    }
+    });
+}
+
+pub fn add_line_to_buffer(text: String, color: Option<String>, line_type: LineType) {
+    TERMINAL_LINES.with(|lines| {
+        let mut lines_mut = lines.borrow_mut();
+
+        lines_mut.push_back(TerminalLine {
+            text,
+            color,
+            line_type,
+        });
+
+        MAX_LINES.with(|max| {
+            let max_lines = *max.borrow();
+            while lines_mut.len() > max_lines {
+                lines_mut.pop_front();
+            }
+        });
+    });
+}
+
+// Convenience function for simple lines (keeping 2-parameter version for compatibility)
+pub fn add_simple_line(text: String, color: Option<String>) {
+    add_line_to_buffer(text, color, LineType::Normal);
+}
+
+pub fn get_terminal_lines() -> Vec<TerminalLine> {
+    TERMINAL_LINES.with(|lines| lines.borrow().iter().cloned().collect())
+}
+
+pub fn clear_terminal_buffer() {
+    TERMINAL_LINES.with(|lines| {
+        lines.borrow_mut().clear();
+    });
+}
+
+pub fn get_line_count() -> usize {
+    TERMINAL_LINES.with(|lines| lines.borrow().len())
+}
+
+// Function to check if autoscrolling is needed
+pub fn should_autoscroll() -> bool {
+    MAX_LINES.with(|max| {
+        TERMINAL_LINES.with(|lines| {
+            let line_count = lines.borrow().len();
+            let max_lines = *max.borrow();
+            line_count >= max_lines
+        })
+    })
 }
