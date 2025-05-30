@@ -15,6 +15,10 @@ export class Terminal3D {
     this.hiddenInput = null; // Add reference to hidden input element
     this.isTerminalFocused = false;
     this.animationId = null;
+    this.isHoveringScreen = false; // Track if hovering over screen
+    this.scrollHistory = []; // Limited scroll history
+    this.maxScrollHistory = 50; // Limit scroll history size
+    this.currentScrollPosition = 0;
     this.init();
   }
 
@@ -225,10 +229,95 @@ export class Terminal3D {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Set up raycasting for screen clicks
+    // Set up raycasting for screen interactions
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
+    // Mouse move handler for hover effects
+    this.renderer.domElement.addEventListener("mousemove", (event) => {
+      this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      const intersectables = [];
+      if (this.pcModel) {
+        this.pcModel.traverse((child) => {
+          if (child.isMesh) {
+            intersectables.push(child);
+          }
+        });
+      }
+      if (this.screenMesh && !intersectables.includes(this.screenMesh)) {
+        intersectables.push(this.screenMesh);
+      }
+
+      const intersects = this.raycaster.intersectObjects(intersectables);
+
+      if (intersects.length > 0) {
+        const hoveredObject = intersects[0].object;
+
+        const isScreen =
+          hoveredObject.name === "Plane008_Material002_0" ||
+          hoveredObject === this.screenMesh ||
+          hoveredObject.material?.map === this.terminalTexture ||
+          (hoveredObject.name &&
+            hoveredObject.name.toLowerCase().includes("screen"));
+
+        if (isScreen) {
+          // Hovering over screen - change cursor to pointer
+          this.renderer.domElement.style.cursor = "pointer";
+          this.isHoveringScreen = true;
+        } else {
+          // Hovering over monitor face but not screen - change cursor to pointer
+          this.renderer.domElement.style.cursor = "pointer";
+          this.isHoveringScreen = false;
+        }
+      } else {
+        // Not hovering over any mesh - default cursor
+        this.renderer.domElement.style.cursor = "default";
+        this.isHoveringScreen = false;
+      }
+    });
+
+    // Mouse leave handler to reset cursor
+    this.renderer.domElement.addEventListener("mouseleave", () => {
+      this.renderer.domElement.style.cursor = "default";
+      this.isHoveringScreen = false;
+    });
+
+    // Wheel event for scrolling when hovering over screen
+    this.renderer.domElement.addEventListener("wheel", (event) => {
+      if (this.isHoveringScreen) {
+        event.preventDefault();
+
+        // Get current terminal content snapshot
+        const currentSnapshot = this.captureTerminalSnapshot();
+
+        // Add to scroll history if different from last entry
+        if (
+          this.scrollHistory.length === 0 ||
+          this.scrollHistory[this.scrollHistory.length - 1] !== currentSnapshot
+        ) {
+          this.scrollHistory.push(currentSnapshot);
+
+          // Limit history size
+          if (this.scrollHistory.length > this.maxScrollHistory) {
+            this.scrollHistory.shift();
+          }
+        }
+
+        // Scroll up on wheel up
+        if (event.deltaY < 0) {
+          this.scrollUp();
+        } else {
+          // Scroll down on wheel down (back to current)
+          this.scrollDown();
+        }
+      }
+    });
+
+    // Click handler
     this.renderer.domElement.addEventListener("click", (event) => {
       this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -338,6 +427,60 @@ export class Terminal3D {
         this.hiddenInput.blur();
       }
     });
+  }
+
+  // Capture current terminal content as a snapshot
+  captureTerminalSnapshot() {
+    if (!this.terminalCanvas) return null;
+
+    try {
+      // Create a simple text representation of current terminal state
+      // This is a simplified approach - you might want to enhance this
+      return {
+        timestamp: Date.now(),
+        // You could extend this to capture actual terminal buffer state
+        // from your Rust terminal if you expose that functionality
+      };
+    } catch (e) {
+      console.warn("Failed to capture terminal snapshot:", e);
+      return null;
+    }
+  }
+
+  // Scroll up through limited history
+  scrollUp() {
+    if (this.scrollHistory.length === 0) return;
+
+    // Move backward in history
+    if (this.currentScrollPosition < this.scrollHistory.length - 1) {
+      this.currentScrollPosition++;
+      console.log(`Scrolled up to position ${this.currentScrollPosition}`);
+
+      // Here you would trigger the scroll display
+      // For now, we'll dispatch a custom event that your Rust code can listen to
+      const scrollEvent = new CustomEvent("terminalScrollUp", {
+        detail: { position: this.currentScrollPosition },
+      });
+      window.dispatchEvent(scrollEvent);
+    }
+  }
+
+  // Scroll down (back toward current)
+  scrollDown() {
+    if (this.currentScrollPosition > 0) {
+      this.currentScrollPosition--;
+      console.log(`Scrolled down to position ${this.currentScrollPosition}`);
+
+      const scrollEvent = new CustomEvent("terminalScrollDown", {
+        detail: { position: this.currentScrollPosition },
+      });
+      window.dispatchEvent(scrollEvent);
+    } else {
+      // Back to current/live view
+      this.currentScrollPosition = 0;
+      const scrollEvent = new CustomEvent("terminalScrollToBottom");
+      window.dispatchEvent(scrollEvent);
+    }
   }
 
   animate() {

@@ -1,4 +1,4 @@
-use input::setup::InputSetup;
+use input::setup::InputHandler;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
 
@@ -29,7 +29,7 @@ pub fn main() {
         .dyn_into::<HtmlInputElement>()
         .expect("element is not an input");
 
-    InputSetup::setup(&terminal, &hidden_input);
+    InputHandler::setup(&terminal, &hidden_input);
 
     wasm_bindgen_futures::spawn_local(async move {
         terminal.init_boot().await;

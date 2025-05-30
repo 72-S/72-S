@@ -1,26 +1,23 @@
 use crate::commands::CommandHandler;
-use crate::terminal::buffer::InputMode;
-use crate::terminal::{
-    autocomplete::{find_common_prefix, AutoComplete, CompletionResult},
-    buffer, Terminal,
-};
+use crate::input::history::CommandHistory;
+use crate::terminal::autocomplete::{find_common_prefix, AutoComplete, CompletionResult};
+use crate::terminal::buffer::{self, InputMode};
+use crate::terminal::Terminal;
 use crate::utils::panic;
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{window, HtmlInputElement, KeyboardEvent};
 
-use super::history::CommandHistory;
-
 thread_local! {
     static CURRENT_INPUT: RefCell<String> = RefCell::new(String::new());
-    static IS_FOCUSED: RefCell<bool> = RefCell::new(true);
+    static IS_FOCUSED: RefCell<bool> = RefCell::new(false);
     static AUTOCOMPLETE: RefCell<AutoComplete> = RefCell::new(AutoComplete::new());
 }
 
-pub struct InputSetup;
+pub struct InputHandler;
 
-impl InputSetup {
+impl InputHandler {
     pub fn setup(terminal: &Terminal, hidden_input: &HtmlInputElement) {
         let history = CommandHistory::new();
         let processor = terminal.command_handler.clone();
@@ -163,6 +160,7 @@ impl InputSetup {
         Self::setup_focus_listeners(&terminal_clone, &hidden_input_clone);
         Self::setup_cursor_blink(&terminal_clone);
         Self::setup_custom_listeners(&terminal_clone);
+        Self::setup_scroll_listeners(&terminal_clone);
 
         terminal.prepare_for_input();
         let _ = hidden_input.focus();
@@ -245,6 +243,61 @@ impl InputSetup {
             )
             .unwrap();
         blur_event_callback.forget();
+    }
+
+    fn setup_scroll_listeners(terminal: &Terminal) {
+        let terminal_clone = terminal.clone();
+        let window = window().unwrap();
+
+        let scroll_up_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                if buffer::scroll_up(3) {
+                    terminal.render();
+                }
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        window
+            .add_event_listener_with_callback(
+                "terminalScrollUp",
+                scroll_up_callback.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        scroll_up_callback.forget();
+
+        let scroll_down_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                if buffer::scroll_down(3) {
+                    terminal.render();
+                }
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        window
+            .add_event_listener_with_callback(
+                "terminalScrollDown",
+                scroll_down_callback.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        scroll_down_callback.forget();
+
+        let scroll_to_bottom_callback = {
+            let terminal = terminal_clone.clone();
+            Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                buffer::reset_scroll();
+                terminal.render();
+            }) as Box<dyn FnMut(_)>)
+        };
+
+        window
+            .add_event_listener_with_callback(
+                "terminalScrollToBottom",
+                scroll_to_bottom_callback.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        scroll_to_bottom_callback.forget();
     }
 
     fn handle_enter(

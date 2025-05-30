@@ -1,7 +1,5 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
-
-/// Represents different types of terminal lines for proper rendering and management
 #[derive(Debug, Clone, PartialEq)]
 pub enum LineType {
     Normal,  // Regular output
@@ -14,14 +12,13 @@ pub enum LineType {
     System,  // System messages
 }
 
-/// A single line in the terminal buffer with all its properties
 #[derive(Debug, Clone)]
 pub struct BufferLine {
     pub content: String,
     pub line_type: LineType,
     pub color: Option<String>,
     pub _timestamp: f64,
-    pub wrapped_lines: Vec<String>, // For handling long lines
+    pub wrapped_lines: Vec<String>,
 }
 
 impl BufferLine {
@@ -35,11 +32,9 @@ impl BufferLine {
         }
     }
 
-    /// Calculate wrapped lines based on terminal width (Unicode-safe)
     pub fn calculate_wrapping(&mut self, max_width: usize) {
         self.wrapped_lines.clear();
 
-        // Use char count instead of byte count for Unicode safety
         let chars: Vec<char> = self.content.chars().collect();
 
         if chars.len() <= max_width {
@@ -52,13 +47,11 @@ impl BufferLine {
             let end = (start + max_width).min(chars.len());
 
             if end >= chars.len() {
-                // Last chunk
                 let chunk: String = chars[start..].iter().collect();
                 self.wrapped_lines.push(chunk);
                 break;
             }
 
-            // Find a good break point (prefer spaces) within character boundaries
             let mut break_point = end;
             for i in (start..end).rev() {
                 if chars[i] == ' ' {
@@ -70,7 +63,6 @@ impl BufferLine {
             let chunk: String = chars[start..break_point].iter().collect();
             self.wrapped_lines.push(chunk);
 
-            // Skip the space if we broke on one
             start = if break_point < end && chars[break_point] == ' ' {
                 break_point + 1
             } else {
@@ -79,7 +71,6 @@ impl BufferLine {
         }
     }
 
-    /// Get the number of visual lines this buffer line occupies
     pub fn visual_line_count(&self) -> usize {
         if self.wrapped_lines.is_empty() {
             1
@@ -89,7 +80,6 @@ impl BufferLine {
     }
 }
 
-/// Terminal state for managing input and cursor
 #[derive(Debug, Clone)]
 pub struct TerminalState {
     pub current_input: String,
@@ -101,9 +91,9 @@ pub struct TerminalState {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputMode {
-    Normal,     // Ready for input
-    Processing, // Command being processed
-    Disabled,   // Input disabled (e.g., during animations)
+    Normal,
+    Processing,
+    Disabled,
 }
 
 impl Default for TerminalState {
@@ -118,13 +108,13 @@ impl Default for TerminalState {
     }
 }
 
-/// Main line buffer implementation
 pub struct LineBuffer {
     buffer: RefCell<VecDeque<BufferLine>>,
     state: RefCell<TerminalState>,
     max_lines: RefCell<usize>,
     terminal_width: RefCell<usize>,
     terminal_height: RefCell<usize>,
+    max_scroll_lines: RefCell<usize>,
 }
 
 impl LineBuffer {
@@ -132,9 +122,10 @@ impl LineBuffer {
         Self {
             buffer: RefCell::new(VecDeque::new()),
             state: RefCell::new(TerminalState::default()),
-            max_lines: RefCell::new(1000), // Keep more history
+            max_lines: RefCell::new(1000), // keep history
             terminal_width: RefCell::new(80),
             terminal_height: RefCell::new(25),
+            max_scroll_lines: RefCell::new(100),
         }
     }
 
@@ -161,6 +152,8 @@ impl LineBuffer {
         while buffer.len() > max {
             buffer.pop_front();
         }
+
+        self.reset_scroll();
     }
 
     pub fn add_lines(&self, content: &str, line_type: LineType, color: Option<String>) {
@@ -230,6 +223,46 @@ impl LineBuffer {
             self.reset_scroll();
         }
     }
+
+    pub fn scroll_up(&self, lines: usize) -> bool {
+        let mut state = self.state.borrow_mut();
+        let buffer = self.buffer.borrow();
+        let max_scroll = *self.max_scroll_lines.borrow();
+        let terminal_height = *self.terminal_height.borrow();
+
+        let total_visual_lines: usize = buffer.iter().map(|line| line.visual_line_count()).sum();
+
+        let max_scroll_offset = if total_visual_lines > terminal_height {
+            (total_visual_lines - terminal_height).min(max_scroll)
+        } else {
+            0
+        };
+
+        let new_offset = (state.scroll_offset + lines).min(max_scroll_offset);
+
+        if new_offset != state.scroll_offset {
+            state.scroll_offset = new_offset;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn scroll_down(&self, lines: usize) -> bool {
+        let mut state = self.state.borrow_mut();
+        let new_offset = state.scroll_offset.saturating_sub(lines);
+
+        if new_offset != state.scroll_offset {
+            state.scroll_offset = new_offset;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn _scroll_offset(&self) -> usize {
+        self.state.borrow().scroll_offset
+    }
 }
 
 thread_local! {
@@ -278,4 +311,20 @@ pub fn set_input_mode(mode: InputMode) {
 
 pub fn auto_scroll_to_bottom() {
     LINE_BUFFER.with(|buffer| buffer.auto_scroll_to_bottom());
+}
+
+pub fn scroll_up(lines: usize) -> bool {
+    LINE_BUFFER.with(|buffer| buffer.scroll_up(lines))
+}
+
+pub fn scroll_down(lines: usize) -> bool {
+    LINE_BUFFER.with(|buffer| buffer.scroll_down(lines))
+}
+
+pub fn _get_scroll_offset() -> usize {
+    LINE_BUFFER.with(|buffer| buffer._scroll_offset())
+}
+
+pub fn reset_scroll() {
+    LINE_BUFFER.with(|buffer| buffer.reset_scroll());
 }
