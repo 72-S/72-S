@@ -1,10 +1,10 @@
-use crate::terminal::line_buffer::InputMode;
-use crate::terminal::{line_buffer, Terminal};
-use crate::utils::panic::line_buffer::LineType;
+use crate::terminal::buffer::InputMode;
+use crate::terminal::{buffer, Terminal};
+use crate::utils::panic::buffer::LineType;
 
 pub async fn trigger(terminal: &Terminal) {
-    line_buffer::clear_buffer();
-    line_buffer::set_input_mode(InputMode::Disabled);
+    buffer::clear_buffer();
+    buffer::set_input_mode(InputMode::Disabled);
 
     let panic_lines = vec![
         ("⚠️  CRITICAL SYSTEM ERROR ⚠️", Some("error")),
@@ -32,7 +32,7 @@ pub async fn trigger(terminal: &Terminal) {
     ];
 
     for (line, color) in panic_lines {
-        line_buffer::add_line(
+        buffer::add_line(
             line.to_string(),
             LineType::System,
             color.map(|s| s.to_string()),
@@ -43,13 +43,13 @@ pub async fn trigger(terminal: &Terminal) {
 
     terminal.sleep(2000).await;
 
-    line_buffer::clear_buffer();
-    line_buffer::add_line(
+    buffer::clear_buffer();
+    buffer::add_line(
         "System restored! Terminal is back online.".to_string(),
         LineType::System,
         Some("success".to_string()),
     );
-    line_buffer::add_line("".to_string(), LineType::Normal, None);
+    buffer::add_line("".to_string(), LineType::Normal, None);
     terminal.render();
 }
 

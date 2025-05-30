@@ -1,4 +1,4 @@
-use super::line_buffer::{self, BufferLine, InputMode, LineType, TerminalState};
+use super::buffer::{self, BufferLine, InputMode, LineType, TerminalState};
 use js_sys::Promise;
 use std::cell::Cell;
 use wasm_bindgen::prelude::*;
@@ -50,10 +50,9 @@ impl TerminalRenderer {
         let width = canvas.width() as i32;
         let height = canvas.height() as i32;
         let font_size = 14;
-        let line_height = font_size as f64 + 6.0; // Add some line spacing
-        let char_width = font_size as f64 * 0.6; // Monospace character width approximation
+        let line_height = font_size as f64 + 6.0;
+        let char_width = font_size as f64 * 0.6;
 
-        // Configure context
         context.set_font(&format!("{}px 'Courier New', monospace", font_size));
         context.set_text_baseline("top");
         context.set_image_smoothing_enabled(false);
@@ -71,7 +70,6 @@ impl TerminalRenderer {
         }
     }
 
-    /// Legacy add_line method for compatibility
     pub async fn add_line(&self, text: &str, options: Option<LineOptions>) {
         let opts = options.unwrap_or_default();
 
@@ -85,63 +83,50 @@ impl TerminalRenderer {
     }
 
     async fn boot(&self, task: &str, opts: &LineOptions) {
-        // Disable input during boot animation to prevent prompt from showing
-        line_buffer::set_input_mode(InputMode::Disabled);
+        buffer::set_input_mode(InputMode::Disabled);
+        let y = self.y.get();
 
-        let current_y = self.y.get();
-
-        let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-        for &spin_char in &spinner[0..4] {
-            let text = format!("{} {}", task, spin_char);
-            self.clear_line_at_y(current_y);
-            self.draw_text(&text, 10.0, current_y, opts.color.as_deref());
+        let spinner = ["⠋", "⠙", "⠹", "⠸"];
+        for &spin in &spinner {
+            let text = format!("{} {}", task, spin);
+            self.clear_line_at_y(y);
+            self.draw_text(&text, 10.0, y, opts.color.as_deref());
             self.sleep(60).await;
         }
 
         let final_text = format!("{} [OK]", task);
-        self.clear_line_at_y(current_y);
-        self.draw_boot_line(&final_text, current_y, opts.color.as_deref());
-
-        // Add to new line buffer
-        line_buffer::add_line(final_text, LineType::Boot, opts.color.clone());
-
+        self.clear_line_at_y(y);
+        self.draw_boot_line(&final_text, y, opts.color.as_deref());
+        buffer::add_line(final_text, LineType::Boot, opts.color.clone());
         self.advance_y();
         self.handle_scroll_if_needed();
     }
 
     async fn typing(&self, text: &str, speed: i32, opts: &LineOptions) {
-        // Disable input during typing animation to prevent prompt from showing
-        line_buffer::set_input_mode(InputMode::Disabled);
-
-        let current_y = self.y.get();
+        buffer::set_input_mode(InputMode::Disabled);
+        let y = self.y.get();
         let mut displayed = String::new();
 
         for ch in text.chars() {
             displayed.push(ch);
-            self.clear_line_at_y(current_y);
-            self.draw_text(&displayed, 10.0, current_y, opts.color.as_deref());
+            self.clear_line_at_y(y);
+            self.draw_text(&displayed, 10.0, y, opts.color.as_deref());
             self.sleep(speed).await;
         }
 
-        // Add to new line buffer
-        line_buffer::add_line(text.to_string(), LineType::Typing, opts.color.clone());
-
+        buffer::add_line(text.to_string(), LineType::Typing, opts.color.clone());
         self.advance_y();
         self.handle_scroll_if_needed();
     }
 
     async fn simple(&self, text: &str, opts: &LineOptions) {
-        let current_y = self.y.get();
-
-        // Add to new line buffer
-        line_buffer::add_line(text.to_string(), LineType::Normal, opts.color.clone());
-
-        self.draw_text(text, 10.0, current_y, opts.color.as_deref());
+        let y = self.y.get();
+        buffer::add_line(text.to_string(), LineType::Normal, opts.color.clone());
+        self.draw_text(text, 10.0, y, opts.color.as_deref());
         self.advance_y();
         self.handle_scroll_if_needed();
     }
 
-    /// Clear the entire canvas
     pub fn clear_screen(&self) {
         self.context.save();
         self.set_fill_color("#000000");
@@ -151,45 +136,34 @@ impl TerminalRenderer {
         self.y.set(20.0);
     }
 
-    /// Calculate maximum lines that fit on screen
     pub fn max_visible_lines(&self) -> usize {
         ((self.height as f64 - 40.0) / self.line_height) as usize
     }
 
-    /// Calculate maximum characters per line
     pub fn max_chars_per_line(&self) -> usize {
         ((self.width as f64 - 20.0) / self.char_width) as usize
     }
 
-    /// Render the entire terminal state using the new line buffer
     pub fn render(&self) {
         self.clear_screen();
+        buffer::set_terminal_dimensions(self.max_chars_per_line(), self.max_visible_lines());
+        let visible_lines = buffer::get_visible_lines(self.max_visible_lines() - 2);
+        let state = buffer::get_terminal_state();
 
-        // Update line buffer dimensions
-        line_buffer::set_terminal_dimensions(self.max_chars_per_line(), self.max_visible_lines());
-
-        // Get visible lines
-        let visible_lines = line_buffer::get_visible_lines(self.max_visible_lines() - 2); // Reserve space for input
-        let state = line_buffer::get_terminal_state();
-
-        // Render lines
         let mut y_offset = 20.0;
         for line in visible_lines {
             y_offset += self.render_line(&line, y_offset);
         }
 
-        // Update y position for legacy compatibility
         self.y.set(y_offset);
 
-        // Only render input line if in normal mode (not during animations)
         if state.input_mode == InputMode::Normal {
             self.render_input_line(&state, y_offset);
         }
     }
 
-    /// Render a single buffer line
     fn render_line(&self, line: &BufferLine, y: f64) -> f64 {
-        let color = self.get_color_for_line_type(&line.line_type, line.color.as_deref());
+        let color = self.get_color(&line.line_type, line.color.as_deref());
 
         if line.wrapped_lines.is_empty() {
             self.draw_text(&line.content, 10.0, y, Some(&color));
@@ -204,16 +178,10 @@ impl TerminalRenderer {
         }
     }
 
-    /// Render the input line with prompt and cursor
     fn render_input_line(&self, state: &TerminalState, y: f64) {
-        // Clear the input line area
         self.clear_line_at_y(y);
+        self.draw_text(&state.prompt, 10.0, y, Some("#00ffff"));
 
-        // Draw prompt
-        let prompt_color = "#00ffff"; // Cyan
-        self.draw_text(&state.prompt, 10.0, y, Some(prompt_color));
-
-        // Draw input text
         let prompt_width = state.prompt.len() as f64 * self.char_width;
         let input_x = 10.0 + prompt_width;
 
@@ -221,55 +189,38 @@ impl TerminalRenderer {
             self.draw_text(&state.current_input, input_x, y, Some("#ffffff"));
         }
 
-        // Draw cursor
         if self.cursor_blink_state.get() {
             let cursor_x = input_x + (state.cursor_position as f64 * self.char_width);
             self.draw_cursor(cursor_x, y);
         }
     }
 
-    /// Legacy draw methods for compatibility
     pub fn draw_text(&self, text: &str, x: f64, y: f64, color: Option<&str>) {
         self.context.save();
-        self.context.set_font("14px monospace");
-        self.context.set_text_baseline("top");
-
-        if let Some(color) = color {
-            self.set_fill_color(&self.get_color_value(color));
-        } else {
-            self.set_fill_color("#ffffff");
-        }
-
+        self.setup_font();
+        self.set_fill_color(&self.get_color_value(color.unwrap_or("#ffffff")));
         let _ = self.context.fill_text(text, x, y);
         self.context.restore();
     }
 
     pub fn draw_boot_line(&self, text: &str, y: f64, color: Option<&str>) {
         self.context.save();
-
-        self.context.set_font("14px monospace");
-        self.context.set_text_baseline("top");
-
-        if let Some(color) = color {
-            self.set_fill_color(&self.get_color_value(color));
-        } else {
-            self.set_fill_color("#ffffff");
-        }
+        self.setup_font();
 
         if let Some(ok_pos) = text.rfind(" [OK]") {
             let main_text = &text[..ok_pos];
             let ok_text = " [OK]";
 
+            self.set_fill_color(&self.get_color_value(color.unwrap_or("#ffffff")));
             self.context.fill_text(main_text, 10.0, y).unwrap();
 
-            let char_width = 8.4;
-            let main_width = main_text.len() as f64 * char_width;
-
+            let main_width = main_text.len() as f64 * 8.4;
             self.set_fill_color("#00ff00");
             self.context
                 .fill_text(ok_text, 10.0 + main_width, y)
                 .unwrap();
         } else {
+            self.set_fill_color(&self.get_color_value(color.unwrap_or("#ffffff")));
             self.context.fill_text(text, 10.0, y).unwrap();
         }
 
@@ -284,15 +235,13 @@ impl TerminalRenderer {
         self.context.restore();
     }
 
-    /// Draw cursor
     fn draw_cursor(&self, x: f64, y: f64) {
         self.context.save();
-        self.set_fill_color("#00ff00"); // Green cursor
+        self.set_fill_color("#00ff00");
         self.context.fill_rect(x, y, 2.0, self.line_height - 2.0);
         self.context.restore();
     }
 
-    /// Set fill color for context
     fn set_fill_color(&self, color: &str) {
         let _ = js_sys::Reflect::set(
             &self.context,
@@ -301,153 +250,92 @@ impl TerminalRenderer {
         );
     }
 
-    /// Get color for line type
-    fn get_color_for_line_type(&self, line_type: &LineType, custom_color: Option<&str>) -> String {
+    fn setup_font(&self) {
+        self.context.set_font("14px monospace");
+        self.context.set_text_baseline("top");
+    }
+
+    fn get_color(&self, line_type: &LineType, custom_color: Option<&str>) -> String {
         if let Some(color) = custom_color {
             return self.get_color_value(color);
         }
 
         match line_type {
-            LineType::Command => "#00ffff".to_string(), // Cyan for commands
-            LineType::Output => "#ffffff".to_string(),  // White for output
-            LineType::Error => "#ff0000".to_string(),   // Red for errors
-            LineType::System => "#ffff00".to_string(),  // Yellow for system
-            LineType::Boot => "#00ff00".to_string(),    // Green for boot
-            LineType::Typing => "#ffffff".to_string(),  // White for typing
-            LineType::Prompt => "#00ffff".to_string(),  // Cyan for prompts
-            LineType::Normal => "#ffffff".to_string(),  // White for normal
+            LineType::Command => "#00ffff",
+            LineType::Output => "#ffffff",
+            LineType::_Error => "#ff0000",
+            LineType::System => "#ffff00",
+            LineType::Boot => "#00ff00",
+            LineType::Typing => "#ffffff",
+            LineType::_Prompt => "#00ffff",
+            LineType::Normal => "#ffffff",
         }
+        .to_string()
     }
 
     pub fn get_color_value(&self, color: &str) -> String {
         match color {
-            "red" => "#ff0000".to_string(),
-            "green" => "#00ff00".to_string(),
-            "blue" => "#0000ff".to_string(),
-            "yellow" => "#ffff00".to_string(),
-            "cyan" => "#00ffff".to_string(),
-            "magenta" => "#ff00ff".to_string(),
-            "white" => "#ffffff".to_string(),
-            "gray" | "grey" => "#808080".to_string(),
-            "boot-line" => "#ffffff".to_string(),
-            "typing-line" => "#ffffff".to_string(),
-            "command" => "#8be9fd".to_string(),
-            "completion" => "#f8f8f2".to_string(),
-            "error" => "#ff4444".to_string(),
-            "success" => "#44ff44".to_string(),
-            "warning" => "#ffaa00".to_string(),
+            "red" => "#ff0000",
+            "green" => "#00ff00",
+            "blue" => "#0000ff",
+            "yellow" => "#ffff00",
+            "cyan" => "#00ffff",
+            "magenta" => "#ff00ff",
+            "white" => "#ffffff",
+            "gray" | "grey" => "#808080",
+            "boot-line" | "typing-line" => "#ffffff",
+            "command" => "#8be9fd",
+            "completion" => "#f8f8f2",
+            "error" => "#ff4444",
+            "success" => "#44ff44",
+            "warning" => "#ffaa00",
             _ => {
                 if color.starts_with('#') || color.starts_with("rgb") {
-                    color.to_string()
+                    color
                 } else {
-                    "#ffffff".to_string()
+                    "#ffffff"
                 }
             }
         }
+        .to_string()
     }
 
     fn advance_y(&self) {
-        let new_y = self.y.get() + self.line_height;
-        self.y.set(new_y);
+        self.y.set(self.y.get() + self.line_height);
     }
 
-    // Add method to handle automatic scrolling
     fn handle_scroll_if_needed(&self) {
         let max_lines = (self.height as f64 / self.line_height) as i32;
         let current_line = ((self.y.get() - 20.0) / self.line_height) as i32;
 
         if current_line >= max_lines - 3 {
-            // Need to scroll - use new render system
             self.render();
         }
     }
 
     pub fn clear_output(&self) {
-        line_buffer::clear_buffer();
+        buffer::clear_buffer();
         self.clear_screen();
         self.prepare_for_input();
     }
 
-    /// Method to draw the current input line with prompt
-    pub fn draw_current_input_line(&self, input: &str) {
-        let state = line_buffer::get_terminal_state();
-        let current_y = self.y.get();
-
-        // Clear the current line first
-        self.clear_line_at_y(current_y);
-
-        // Draw prompt in cyan
-        self.draw_text(&state.prompt, 10.0, current_y, Some("#00ffff"));
-
-        // Draw input part
-        if !input.is_empty() {
-            let prompt_width = state.prompt.chars().count() as f64 * self.char_width;
-            self.draw_text(input, 10.0 + prompt_width, current_y, Some("#ffffff"));
-        }
-    }
-
-    /// Method to draw cursor at current position
-    pub fn draw_cursor_legacy(&self, input: &str) {
-        let state = line_buffer::get_terminal_state();
-        let current_y = self.y.get();
-        let prompt_width = state.prompt.chars().count() as f64 * self.char_width;
-        let input_width = input.chars().count() as f64 * self.char_width;
-        let cursor_x = 10.0 + prompt_width + input_width;
-
-        self.context.save();
-        self.set_fill_color("#00ff00"); // green cursor
-        self.context.fill_text("█", cursor_x, current_y).unwrap();
-        self.context.restore();
-    }
-
-    /// Method to prepare for input (ensures prompt is visible)
     pub fn prepare_for_input(&self) {
-        // Set up terminal state
-        let _cwd = "/home/objz"; // This should come from command handler
-        let display_path = "~";
-        let prompt = format!("objz@objz:{}$ ", display_path);
-
-        line_buffer::set_current_prompt(prompt);
-        line_buffer::set_input_mode(InputMode::Normal);
-        line_buffer::update_input_state(String::new(), 0);
-        line_buffer::auto_scroll_to_bottom();
-
-        // Render the terminal
+        let prompt = "objz@objz:~$ ";
+        buffer::set_current_prompt(prompt.to_string());
+        buffer::set_input_mode(InputMode::Normal);
+        buffer::update_input_state(String::new(), 0);
+        buffer::auto_scroll_to_bottom();
         self.render();
     }
 
-    /// Method to update input display in real-time
-    pub fn update_input_display(&self, input: &str) {
-        let cursor_pos = input.len(); // For now, cursor is at end
-        line_buffer::update_input_state(input.to_string(), cursor_pos);
-        self.render();
-    }
-
-    /// Method to finalize input (when Enter is pressed)
-    pub fn finalize_input(&self, input: &str) {
-        let state = line_buffer::get_terminal_state();
-
-        // Add the command to the buffer
-        if !input.trim().is_empty() {
-            line_buffer::add_command_line(&state.prompt, input);
-        }
-
-        // Set processing mode
-        line_buffer::set_input_mode(InputMode::Processing);
-        line_buffer::update_input_state(String::new(), 0);
-    }
-
-    /// Toggle cursor blink state
     pub fn toggle_cursor(&self) {
         self.cursor_blink_state.set(!self.cursor_blink_state.get());
     }
 
-    /// Force cursor visible
     pub fn show_cursor(&self) {
         self.cursor_blink_state.set(true);
     }
 
-    /// Force cursor hidden
     pub fn hide_cursor(&self) {
         self.cursor_blink_state.set(false);
     }
@@ -467,10 +355,6 @@ impl TerminalRenderer {
         });
 
         let _ = JsFuture::from(promise).await;
-    }
-
-    pub fn get_current_prompt(&self) -> String {
-        line_buffer::get_terminal_state().prompt
     }
 }
 

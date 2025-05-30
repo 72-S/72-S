@@ -1,4 +1,4 @@
-use super::line_buffer;
+use super::buffer;
 use super::renderer::{LineOptions, TerminalRenderer};
 use crate::commands::CommandHandler;
 use js_sys::Promise;
@@ -38,7 +38,7 @@ impl Terminal {
         let command_handler = CommandHandler::new();
         let base_prompt = "objz@objz".to_string();
 
-        line_buffer::set_terminal_dimensions(
+        buffer::set_terminal_dimensions(
             renderer.max_chars_per_line(),
             renderer.max_visible_lines(),
         );
@@ -90,7 +90,7 @@ impl Terminal {
 
     pub fn prepare_for_input(&self) {
         let prompt = self.get_current_prompt();
-        line_buffer::set_current_prompt(prompt);
+        buffer::set_current_prompt(prompt);
         self.renderer.prepare_for_input();
     }
 

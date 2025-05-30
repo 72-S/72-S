@@ -1,8 +1,8 @@
 use crate::commands::CommandHandler;
-use crate::terminal::line_buffer::InputMode;
+use crate::terminal::buffer::InputMode;
 use crate::terminal::{
     autocomplete::{find_common_prefix, AutoComplete, CompletionResult},
-    line_buffer, Terminal,
+    buffer, Terminal,
 };
 use crate::utils::panic;
 use std::cell::RefCell;
@@ -43,7 +43,7 @@ impl InputSetup {
                     .unwrap_or(Some(0))
                     .unwrap_or(0) as usize;
 
-                line_buffer::update_input_state(current_value, cursor_pos);
+                buffer::update_input_state(current_value, cursor_pos);
                 terminal.render();
             }) as Box<dyn FnMut(_)>)
         };
@@ -80,7 +80,7 @@ impl InputSetup {
                             CURRENT_INPUT.with(|input| {
                                 *input.borrow_mut() = cmd.clone();
                             });
-                            line_buffer::update_input_state(cmd.clone(), cmd.len());
+                            buffer::update_input_state(cmd.clone(), cmd.len());
                             terminal.render();
                         }
                     }
@@ -91,13 +91,13 @@ impl InputSetup {
                             CURRENT_INPUT.with(|input| {
                                 *input.borrow_mut() = cmd.clone();
                             });
-                            line_buffer::update_input_state(cmd.clone(), cmd.len());
+                            buffer::update_input_state(cmd.clone(), cmd.len());
                         } else {
                             hidden_input.set_value("");
                             CURRENT_INPUT.with(|input| {
                                 input.borrow_mut().clear();
                             });
-                            line_buffer::update_input_state(String::new(), 0);
+                            buffer::update_input_state(String::new(), 0);
                         }
                         terminal.render();
                     }
@@ -112,7 +112,7 @@ impl InputSetup {
                             let new_cursor = current_cursor - 1;
                             let _ = hidden_input
                                 .set_selection_range(new_cursor as u32, new_cursor as u32);
-                            line_buffer::update_input_state(current_input, new_cursor);
+                            buffer::update_input_state(current_input, new_cursor);
                             terminal.render();
                         }
                     }
@@ -128,14 +128,14 @@ impl InputSetup {
                             let new_cursor = current_cursor + 1;
                             let _ = hidden_input
                                 .set_selection_range(new_cursor as u32, new_cursor as u32);
-                            line_buffer::update_input_state(current_input, new_cursor);
+                            buffer::update_input_state(current_input, new_cursor);
                             terminal.render();
                         }
                     }
                     "Home" => {
                         event.prevent_default();
                         let _ = hidden_input.set_selection_range(0, 0);
-                        line_buffer::update_input_state(current_input, 0);
+                        buffer::update_input_state(current_input, 0);
                         terminal.render();
                     }
                     "End" => {
@@ -143,7 +143,7 @@ impl InputSetup {
                         let input_len = current_input.len();
                         let cursor_pos = input_len as u32;
                         let _ = hidden_input.set_selection_range(cursor_pos, cursor_pos);
-                        line_buffer::update_input_state(current_input, input_len);
+                        buffer::update_input_state(current_input, input_len);
                         terminal.render();
                     }
                     "Tab" => {
@@ -259,12 +259,12 @@ impl InputSetup {
         if panic::should_panic(trimmed_input) {
             history.add(trimmed_input.to_string());
             let prompt = terminal.get_current_prompt();
-            line_buffer::add_command_line(&prompt, trimmed_input);
+            buffer::add_command_line(&prompt, trimmed_input);
 
             hidden_input.set_value("");
             CURRENT_INPUT.with(|input| input.borrow_mut().clear());
-            line_buffer::update_input_state(String::new(), 0);
-            line_buffer::set_input_mode(InputMode::Processing);
+            buffer::update_input_state(String::new(), 0);
+            buffer::set_input_mode(InputMode::Processing);
 
             let terminal_clone = terminal.clone();
             let hidden_input_clone = hidden_input.clone();
@@ -278,20 +278,20 @@ impl InputSetup {
         if !trimmed_input.is_empty() {
             history.add(trimmed_input.to_string());
             let prompt = terminal.get_current_prompt();
-            line_buffer::add_command_line(&prompt, trimmed_input);
+            buffer::add_command_line(&prompt, trimmed_input);
         }
 
         hidden_input.set_value("");
         CURRENT_INPUT.with(|input| input.borrow_mut().clear());
-        line_buffer::update_input_state(String::new(), 0);
-        line_buffer::set_input_mode(InputMode::Processing);
+        buffer::update_input_state(String::new(), 0);
+        buffer::set_input_mode(InputMode::Processing);
 
         if !trimmed_input.is_empty() {
             let (result, _directory_changed) = processor.handle(trimmed_input);
 
             match result.as_str() {
                 "CLEAR_SCREEN" => {
-                    line_buffer::clear_buffer();
+                    buffer::clear_buffer();
                     Self::prepare_input(terminal, hidden_input);
                 }
                 "SYSTEM_PANIC" => {
@@ -304,7 +304,7 @@ impl InputSetup {
                 }
                 _ => {
                     if !result.is_empty() {
-                        line_buffer::add_output_lines(&result, None);
+                        buffer::add_output_lines(&result, None);
                     }
                     Self::prepare_input(terminal, hidden_input);
                 }
@@ -316,9 +316,9 @@ impl InputSetup {
 
     fn prepare_input(terminal: &Terminal, hidden_input: &HtmlInputElement) {
         let prompt = terminal.get_current_prompt();
-        line_buffer::set_current_prompt(prompt);
-        line_buffer::set_input_mode(InputMode::Normal);
-        line_buffer::auto_scroll_to_bottom();
+        buffer::set_current_prompt(prompt);
+        buffer::set_input_mode(InputMode::Normal);
+        buffer::auto_scroll_to_bottom();
 
         terminal.render();
         let _ = hidden_input.focus();
@@ -371,7 +371,7 @@ impl InputSetup {
                 let cursor_pos = full_completion.len();
                 let _ = hidden_input.set_selection_range(cursor_pos as u32, cursor_pos as u32);
 
-                line_buffer::update_input_state(full_completion, cursor_pos);
+                buffer::update_input_state(full_completion, cursor_pos);
                 terminal.render();
             }
             CompletionResult::Multiple(completions) => {
@@ -392,14 +392,14 @@ impl InputSetup {
                         let _ =
                             hidden_input.set_selection_range(cursor_pos as u32, cursor_pos as u32);
 
-                        line_buffer::update_input_state(full_completion, cursor_pos);
+                        buffer::update_input_state(full_completion, cursor_pos);
                         terminal.render();
                         return;
                     }
                 }
 
                 let prompt = terminal.get_current_prompt();
-                line_buffer::add_command_line(&prompt, current_input);
+                buffer::add_command_line(&prompt, current_input);
 
                 let completions_text = if completions.len() <= 10 {
                     completions.join("  ")
@@ -416,7 +416,7 @@ impl InputSetup {
                     output
                 };
 
-                line_buffer::add_output_lines(&completions_text, None);
+                buffer::add_output_lines(&completions_text, None);
 
                 Self::prepare_input(terminal, hidden_input);
                 hidden_input.set_value(current_input);
@@ -427,7 +427,7 @@ impl InputSetup {
                 let cursor_pos = current_input.len();
                 let _ = hidden_input.set_selection_range(cursor_pos as u32, cursor_pos as u32);
 
-                line_buffer::update_input_state(current_input.to_string(), cursor_pos);
+                buffer::update_input_state(current_input.to_string(), cursor_pos);
                 terminal.render();
             }
         }
@@ -438,7 +438,7 @@ impl InputSetup {
 
         let blink_callback = Closure::wrap(Box::new(move || {
             let is_focused = IS_FOCUSED.with(|focused| *focused.borrow());
-            let state = line_buffer::get_terminal_state();
+            let state = buffer::get_terminal_state();
 
             if is_focused && state.input_mode == InputMode::Normal {
                 terminal_clone.renderer.toggle_cursor();

@@ -9,8 +9,8 @@ pub enum LineType {
     Output,  // Command output
     Boot,    // Boot sequence lines
     Typing,  // Typing animation lines
-    Prompt,  // Standalone prompt
-    Error,   // Error messages
+    _Prompt, // Standalone prompt
+    _Error,  // Error messages
     System,  // System messages
 }
 
@@ -20,7 +20,7 @@ pub struct BufferLine {
     pub content: String,
     pub line_type: LineType,
     pub color: Option<String>,
-    pub timestamp: f64,
+    pub _timestamp: f64,
     pub wrapped_lines: Vec<String>, // For handling long lines
 }
 
@@ -30,7 +30,7 @@ impl BufferLine {
             content,
             line_type,
             color,
-            timestamp: js_sys::Date::now(),
+            _timestamp: js_sys::Date::now(),
             wrapped_lines: Vec::new(),
         }
     }
