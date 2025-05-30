@@ -163,18 +163,27 @@ impl TerminalRenderer {
     }
 
     fn render_line(&self, line: &BufferLine, y: f64) -> f64 {
-        let color = self.get_color(&line.line_type, line.color.as_deref());
-
-        if line.wrapped_lines.is_empty() {
-            self.draw_text(&line.content, 10.0, y, Some(&color));
-            self.line_height
-        } else {
-            let mut current_y = y;
-            for wrapped_line in &line.wrapped_lines {
-                self.draw_text(wrapped_line, 10.0, current_y, Some(&color));
-                current_y += self.line_height;
+        if line.line_type == LineType::Boot {
+            self.draw_boot_line(&line.content, y, line.color.as_deref());
+            if line.wrapped_lines.is_empty() {
+                self.line_height
+            } else {
+                self.line_height * line.wrapped_lines.len() as f64
             }
-            self.line_height * line.wrapped_lines.len() as f64
+        } else {
+            let color = self.get_color(&line.line_type, line.color.as_deref());
+
+            if line.wrapped_lines.is_empty() {
+                self.draw_text(&line.content, 10.0, y, Some(&color));
+                self.line_height
+            } else {
+                let mut current_y = y;
+                for wrapped_line in &line.wrapped_lines {
+                    self.draw_text(wrapped_line, 10.0, current_y, Some(&color));
+                    current_y += self.line_height;
+                }
+                self.line_height * line.wrapped_lines.len() as f64
+            }
         }
     }
 
@@ -214,7 +223,8 @@ impl TerminalRenderer {
             self.set_fill_color(&self.get_color_value(color.unwrap_or("#ffffff")));
             self.context.fill_text(main_text, 10.0, y).unwrap();
 
-            let main_width = main_text.len() as f64 * 8.4;
+            let main_width = main_text.len() as f64 * self.char_width;
+
             self.set_fill_color("#00ff00");
             self.context
                 .fill_text(ok_text, 10.0 + main_width, y)
@@ -237,8 +247,13 @@ impl TerminalRenderer {
 
     fn draw_cursor(&self, x: f64, y: f64) {
         self.context.save();
-        self.set_fill_color("#00ff00");
-        self.context.fill_rect(x, y, 2.0, self.line_height - 2.0);
+        self.set_fill_color("#ffffff");
+
+        let cursor_height = self.line_height - 6.0;
+        let cursor_y_offset = -1.0;
+
+        self.context
+            .fill_rect(x, y + cursor_y_offset, 2.0, cursor_height);
         self.context.restore();
     }
 
@@ -265,7 +280,7 @@ impl TerminalRenderer {
             LineType::Output => "#ffffff",
             LineType::_Error => "#ff0000",
             LineType::System => "#ffff00",
-            LineType::Boot => "#00ff00",
+            LineType::Boot => "#ffffff",
             LineType::Typing => "#ffffff",
             LineType::_Prompt => "#00ffff",
             LineType::Normal => "#ffffff",

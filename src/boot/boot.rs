@@ -2,67 +2,44 @@ use crate::terminal::{renderer::LineOptions, Terminal};
 
 pub async fn boot(term: &Terminal) {
     let boot_messages = vec![
-        (
-            "Loading Linux kernel version 6.8.9-arch1-1...",
-            "[OK]",
-            "green",
-        ),
-        ("Loading initial ramdisk (initramfs)...", "[OK]", "green"),
-        ("Starting systemd-udevd v254.5-1...", "[OK]", "green"),
-        ("Probing hardware...", "[OK]", "green"),
-        ("Detected storage device: /dev/nvme0n1", "[OK]", "green"),
-        ("Detected storage device: /dev/sda", "[OK]", "green"),
-        ("Started udev Kernel Device Manager.", "[OK]", "green"),
-        ("Activating swap on /dev/sda2...", "[OK]", "green"),
-        ("Mounting root filesystem...", "[OK]", "green"),
-        ("Checking file system on /dev/sda1...", "[OK]", "green"),
-        ("Mounting /boot...", "[OK]", "green"),
-        ("Mounting /home...", "[OK]", "green"),
-        ("Mounting /var...", "[OK]", "green"),
-        ("Starting systemd-journald.service...", "[OK]", "green"),
-        (
-            "Starting systemd-tmpfiles-setup-dev.service...",
-            "[OK]",
-            "green",
-        ),
-        ("Starting systemd-sysctl.service...", "[OK]", "green"),
-        ("Starting Load Kernel Modules...", "[OK]", "green"),
-        ("Loading kernel modules: i915 ext4 fuse...", "[OK]", "green"),
-        (
-            "Started Rule-based Manager for Device Events and Filesystems.",
-            "[OK]",
-            "green",
-        ),
-        ("Starting Network Manager...", "[OK]", "green"),
-        ("Started Network Time Synchronization.", "[OK]", "green"),
-        (
-            "Starting Login Service (systemd-logind)...",
-            "[OK]",
-            "green",
-        ),
-        (
-            "Starting Authorization Manager (polkitd)...",
-            "[OK]",
-            "green",
-        ),
-        ("Starting User Manager for UID 1000...", "[OK]", "green"),
-        ("Started Getty on tty1.", "[OK]", "green"),
-        ("Reached target Multi-User System.", "[OK]", "green"),
-        ("Starting Interface...", "[OK]", "green"),
+        "Loading Linux kernel version 6.8.9-arch1-1...",
+        "Loading initial ramdisk (initramfs)...",
+        "Starting systemd-udevd v254.5-1...",
+        "Probing hardware...",
+        "Detected storage device: /dev/nvme0n1",
+        "Detected storage device: /dev/sda",
+        "Started udev Kernel Device Manager.",
+        "Activating swap on /dev/sda2...",
+        "Mounting root filesystem...",
+        "Checking file system on /dev/sda1...",
+        "Mounting /boot...",
+        "Mounting /home...",
+        "Mounting /var...",
+        "Starting systemd-journald.service...",
+        "Starting systemd-tmpfiles-setup-dev.service...",
+        "Starting systemd-sysctl.service...",
+        "Starting Load Kernel Modules...",
+        "Loading kernel modules: i915 ext4 fuse...",
+        "Started Rule-based Manager for Device Events and Filesystems.",
+        "Starting Network Manager...",
+        "Started Network Time Synchronization.",
+        "Starting Login Service (systemd-logind)...",
+        "Starting Authorization Manager (polkitd)...",
+        "Starting User Manager for UID 1000...",
+        "Started Getty on tty1.",
+        "Reached target Multi-User System.",
+        "Starting Interface...",
     ];
 
-    for (msg, _status, color) in boot_messages {
-        term.add_line(
-            msg,
-            Some(LineOptions::new().with_boot_animation().with_color(color)),
-        )
-        .await;
+    for msg in boot_messages {
+        term.add_line(msg, Some(LineOptions::new().with_boot_animation()))
+            .await;
         term.sleep(15).await;
     }
     term.add_line("", None).await;
     term.add_line(
         "Started objz Terminal",
-        Some(LineOptions::new().with_boot_animation().with_color("green")),
+        Some(LineOptions::new().with_boot_animation()),
     )
     .await;
     term.sleep(200).await;
