@@ -21,16 +21,34 @@ body {
   width: 100vw;
   height: 100vh;
   z-index: 10;
+  /* Enhanced background for better depth */
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%);
+  opacity: 0;
+  animation: sceneAppear 2s ease-out 0.5s forwards;
 }
 
-/* Loading Screen */
+/* Scene fade-in animation */
+@keyframes sceneAppear {
+  0% {
+    opacity: 0;
+    transform: scale(1.1);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+  }
+}
+
+/* Enhanced Loading Screen */
 #loading {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -38,34 +56,147 @@ body {
   z-index: 100;
   color: #8be9fd;
   font-family: "JetBrains Mono", monospace;
-  transition: opacity 0.5s ease;
+  transition:
+    opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+    backdrop-filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
 }
 
 #loading.hidden {
   opacity: 0;
+  transform: scale(0.95) translateY(-20px);
+  backdrop-filter: blur(20px);
   pointer-events: none;
 }
 
 .loading-text {
   font-size: 18px;
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
+  text-shadow:
+    0 0 10px rgba(139, 233, 253, 0.5),
+    0 0 20px rgba(139, 233, 253, 0.3),
+    0 0 30px rgba(139, 233, 253, 0.1);
+  animation:
+    pulseGlow 2s infinite ease-in-out,
+    floatUp 3s infinite ease-in-out;
+  margin-bottom: 2rem;
+}
+
+/* Enhanced animations */
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 10px rgba(139, 233, 253, 0.5),
+      0 0 20px rgba(139, 233, 253, 0.3),
+      0 0 30px rgba(139, 233, 253, 0.1);
+  }
+  50% {
+    opacity: 0.8;
+    text-shadow:
+      0 0 20px rgba(139, 233, 253, 0.8),
+      0 0 30px rgba(139, 233, 253, 0.5),
+      0 0 40px rgba(139, 233, 253, 0.3);
+  }
+}
+
+@keyframes floatUp {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .loading-bar {
-  background: #333;
-  border-radius: 2px;
+  background: rgba(51, 51, 51, 0.8);
+  border-radius: 8px;
   overflow: hidden;
   width: 300px;
-  height: 4px;
+  height: 8px;
   margin-top: 20px;
+  box-shadow:
+    0 0 25px rgba(139, 233, 253, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(139, 233, 253, 0.4);
+  position: relative;
+}
+
+.loading-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(139, 233, 253, 0.1) 50%,
+    transparent 100%
+  );
+  animation: shimmerBg 2s infinite;
 }
 
 .loading-progress {
-  background: linear-gradient(90deg, #8be9fd, #50fa7b);
-  transition: width 0.3s ease;
-  box-shadow: 0 0 10px rgba(139, 233, 253, 0.3);
+  background: linear-gradient(
+    90deg,
+    #8be9fd 0%,
+    #50fa7b 25%,
+    #8be9fd 50%,
+    #50fa7b 75%,
+    #8be9fd 100%
+  );
+  background-size: 200% 100%;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 0 15px rgba(139, 233, 253, 0.6),
+    0 0 25px rgba(80, 250, 123, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.3);
   height: 100%;
   width: 0%;
+  border-radius: 6px;
+  animation:
+    shimmer 2s infinite,
+    progressGlow 1.5s infinite ease-in-out;
+  position: relative;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes shimmerBg {
+  0%,
+  100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes progressGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 15px rgba(139, 233, 253, 0.6),
+      0 0 25px rgba(80, 250, 123, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(139, 233, 253, 0.8),
+      0 0 35px rgba(80, 250, 123, 0.6);
+  }
 }
 
 /* Terminal Canvas Styles */
@@ -78,58 +209,177 @@ body {
   visibility: hidden;
   background: #000000;
 
-  /* Debug red outline */
-  /* border: 3px solid #ff0000; */
-  /* box-shadow: */
-  /* 0 0 10px rgba(255, 0, 0, 0.5), */
-  /* 0 0 20px rgba(139, 233, 253, 0.3); */
+  /* Enhanced glow effect with animations */
+  box-shadow:
+    0 0 20px rgba(139, 233, 253, 0.3),
+    0 0 40px rgba(139, 233, 253, 0.2),
+    0 0 60px rgba(139, 233, 253, 0.1);
 
-  /* Canvas specific styles */
   display: none;
-  border-radius: 4px;
-
+  border-radius: 6px;
   outline: none;
 
+  /* Better text rendering */
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+
+  /* Enhanced transitions */
+  transition:
+    box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Initial state for animation */
+  opacity: 0;
+  animation: terminalAppear 1.5s ease-out 1s forwards;
 }
 
+@keyframes terminalAppear {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0px);
+  }
+}
+
+/* Enhanced focus state with smooth animation */
 #terminal:focus {
-  border-color: #ff0000;
   box-shadow:
-    0 0 15px rgba(255, 0, 0, 0.8),
-    0 0 30px rgba(139, 233, 253, 0.5);
+    0 0 30px rgba(139, 233, 253, 0.7),
+    0 0 60px rgba(139, 233, 253, 0.5),
+    0 0 90px rgba(139, 233, 253, 0.3),
+    0 0 120px rgba(139, 233, 253, 0.1);
+  transform: translate(-50%, -50%) scale(1.02);
+  animation: terminalPulse 2s infinite ease-in-out;
 }
 
+@keyframes terminalPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 30px rgba(139, 233, 253, 0.7),
+      0 0 60px rgba(139, 233, 253, 0.5),
+      0 0 90px rgba(139, 233, 253, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 35px rgba(139, 233, 253, 0.8),
+      0 0 70px rgba(139, 233, 253, 0.6),
+      0 0 105px rgba(139, 233, 253, 0.4);
+  }
+}
+
+/* Enhanced hover effect */
+#terminal:hover {
+  box-shadow:
+    0 0 35px rgba(139, 233, 253, 0.5),
+    0 0 70px rgba(139, 233, 253, 0.4),
+    0 0 105px rgba(139, 233, 253, 0.2);
+  transform: translate(-50%, -50%) scale(1.01);
+}
+
+/* Texture mode for 3D integration */
 #terminal.texture-mode {
   visibility: hidden;
   position: fixed;
   top: -9999px;
   left: -9999px;
   z-index: -1;
+  opacity: 1;
 }
 
-.debug-info {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #00ff00;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 12px;
-  border: 1px solid #00ff00;
-  z-index: 1000;
-  border-radius: 4px;
+/* Enhanced cursor styles for 3D scene interaction */
+#scene-container canvas {
+  cursor: default;
+  transition: cursor 0.3s ease;
 }
 
+#scene-container canvas:hover {
+  cursor: grab;
+}
+
+#scene-container canvas:active {
+  cursor: grabbing;
+}
+
+/* Screen interaction cursor override */
+#scene-container canvas.screen-hover {
+  cursor: pointer !important;
+}
+
+/* Enhanced loading animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+.loading-text {
+  animation:
+    pulseGlow 2s infinite ease-in-out,
+    fadeInUp 1s cubic-bezier(0.4, 0, 0.2, 1),
+    floatUp 3s infinite ease-in-out;
+}
+
+.loading-bar {
+  animation: fadeInUp 1s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+}
+
+/* Camera transition states */
+.camera-transitioning {
+  pointer-events: none;
+}
+
+.camera-focused #terminal {
+  box-shadow:
+    0 0 40px rgba(139, 233, 253, 0.8),
+    0 0 80px rgba(139, 233, 253, 0.6),
+    0 0 120px rgba(139, 233, 253, 0.4) !important;
+  animation: terminalFocusedGlow 1.5s infinite ease-in-out;
+}
+
+@keyframes terminalFocusedGlow {
+  0%,
+  100% {
+    filter: brightness(1) contrast(1);
+  }
+  50% {
+    filter: brightness(1.1) contrast(1.05);
+  }
+}
+
+/* Responsive design improvements */
 @media (max-width: 1024px) {
   #terminal {
     width: 90vw;
     height: 70vh;
     max-width: 800px;
     max-height: 600px;
+  }
+
+  .loading-bar {
+    width: 250px;
+  }
+
+  .loading-text {
+    font-size: 16px;
+  }
+
+  #scene-container {
+    animation-duration: 1.5s;
   }
 }
 
@@ -139,4 +389,100 @@ body {
     height: 75vh;
     font-size: 14px;
   }
+
+  .loading-bar {
+    width: 200px;
+    height: 6px;
+  }
+
+  .loading-text {
+    font-size: 14px;
+    margin-bottom: 1.5rem;
+  }
+
+  #scene-container {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    animation-duration: 1.2s;
+  }
+}
+
+@media (max-width: 480px) {
+  .loading-text {
+    font-size: 12px;
+  }
+
+  .loading-bar {
+    width: 180px;
+    height: 5px;
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  #terminal {
+    image-rendering: auto;
+  }
+
+  .loading-progress {
+    background-size: 400% 100%;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .loading-text,
+  .loading-progress,
+  #terminal,
+  #scene-container {
+    animation: none !important;
+    transition: opacity 0.3s ease !important;
+  }
+
+  #loading {
+    transition: opacity 0.5s ease !important;
+  }
+}
+
+/* Performance optimizations */
+#scene-container,
+#terminal,
+#loading {
+  will-change: transform, opacity;
+}
+
+/* Enhanced utility classes */
+.fade-in {
+  animation: fadeInUp 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glow-pulse {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.screen-glow {
+  box-shadow:
+    0 0 40px rgba(139, 233, 253, 0.7),
+    0 0 80px rgba(139, 233, 253, 0.5),
+    0 0 120px rgba(139, 233, 253, 0.3) !important;
+  animation: terminalPulse 2s infinite ease-in-out;
+}
+
+/* Focus visible improvements for accessibility */
+*:focus-visible {
+  outline: 2px solid #8be9fd;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Enhanced selection styling */
+::selection {
+  background: rgba(139, 233, 253, 0.4);
+  color: #ffffff;
+  text-shadow: 0 0 5px rgba(139, 233, 253, 0.5);
+}
+
+::-moz-selection {
+  background: rgba(139, 233, 253, 0.4);
+  color: #ffffff;
+  text-shadow: 0 0 5px rgba(139, 233, 253, 0.5);
 }
