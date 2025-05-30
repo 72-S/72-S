@@ -22,9 +22,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p dist/js
-          mkdir -p dist/style
           cp -r static/* dist/
-          cp -r style/* dist/style/
           cp -r js/* dist/js/
           cp -r pkg dist/
 

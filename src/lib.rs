@@ -2,7 +2,7 @@ use input::setup::InputSetup;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
 
-mod ascii_art;
+mod ascii;
 mod boot;
 mod commands;
 mod input;

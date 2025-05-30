@@ -1,4 +1,4 @@
-use crate::ascii_art::AsciiArt;
+use crate::ascii::AsciiArt;
 use std::sync::OnceLock;
 use wasm_bindgen::prelude::*;
 
