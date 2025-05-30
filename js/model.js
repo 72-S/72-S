@@ -11,6 +11,7 @@ export class Terminal3D {
     this.pcModel = null;
     this.screenMesh = null;
     this.terminalTexture = null;
+    this.terminalCanvas = null; // Add reference to terminal canvas
     this.isTerminalFocused = false;
     this.animationId = null;
     this.init();
@@ -160,25 +161,24 @@ export class Terminal3D {
   }
 
   async setupTerminalTexture() {
-    const t = document.getElementById("terminal");
-    if (t) t.classList.add("texture-mode");
+    // Get the terminal canvas directly (created by your Rust code)
+    this.terminalCanvas = document.getElementById("terminal");
+
+    if (!this.terminalCanvas) {
+      console.error("Terminal canvas not found!");
+      return;
+    }
+
+    // Wait a frame to ensure canvas is ready
     await new Promise((r) => requestAnimationFrame(r));
 
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 768;
-    canvas.style.position = "absolute";
-    canvas.style.top = "0";
-    canvas.style.left = "0";
-    canvas.style.zIndex = "1000";
-    canvas.style.border = "1px solid red";
-    document.body.appendChild(canvas);
-    const ctx = canvas.getContext("2d");
-    this.terminalTexture = new THREE.CanvasTexture(canvas);
+    // Create Three.js texture from the existing canvas
+    this.terminalTexture = new THREE.CanvasTexture(this.terminalCanvas);
     this.terminalTexture.minFilter = THREE.LinearFilter;
     this.terminalTexture.magFilter = THREE.LinearFilter;
-    this.terminalTexture.flipY = true;
+    this.terminalTexture.flipY = false; // Canvas is already correct orientation
 
+    // Apply texture to screen mesh
     if (this.screenMesh) {
       this.screenMesh.material = new THREE.MeshBasicMaterial({
         map: this.terminalTexture,
@@ -187,125 +187,27 @@ export class Terminal3D {
       });
     }
 
-    this.terminalTexture.offset.y = 0.2;
-    this.terminalTexture.repeat.y = 0.9;
+    // Adjust texture mapping if needed
+    this.terminalTexture.offset.y = 0.0;
+    this.terminalTexture.repeat.y = 1.0;
 
+    // Set up automatic texture updates
     this.updateTerminalTexture = () => {
       try {
-        const terminalBody = document.getElementById("terminal-body");
-        const terminalOutput = document.getElementById("terminal-output");
-
-        if (!terminalBody || !terminalOutput) return;
-
-        ctx.fillStyle = "#0a0a0a";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const scrollTop = terminalBody.scrollTop;
-        const bodyHeight = terminalBody.clientHeight;
-
-        const lineHeight = parseInt(ctx.font.match(/\d+/)[0], 10) + 4;
-
-        const startLine = Math.floor(scrollTop / lineHeight);
-        const visibleLines = Math.ceil(bodyHeight / lineHeight) + 2; // +2 buffer
-
-        const outputDivs = Array.from(terminalOutput.children);
-
-        ctx.font = "16px 'JetBrains Mono', monospace";
-
-        ctx.strokeStyle = "#ff0000";
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-        let y = 20;
-        let lineIndex = 0;
-
-        if (y + lineHeight > canvas.height) {
-          y = canvas.height - lineHeight - 10; // give a margin
+        // The canvas is automatically updated by your Rust terminal renderer
+        // We just need to tell Three.js to update the texture
+        if (this.terminalTexture) {
+          this.terminalTexture.needsUpdate = true;
         }
-
-        for (let i = 0; i < outputDivs.length; i++) {
-          const div = outputDivs[i];
-          const text = div.textContent || "";
-
-          const maxChars = Math.floor((canvas.width - 40) / 10);
-          const lines = [];
-          if (text.length > maxChars) {
-            for (let j = 0; j < text.length; j += maxChars) {
-              lines.push(text.substring(j, j + maxChars));
-            }
-          } else {
-            lines.push(text);
-          }
-
-          for (const line of lines) {
-            if (
-              lineIndex >= startLine &&
-              lineIndex < startLine + visibleLines
-            ) {
-              if (div.classList.contains("command")) {
-                ctx.fillStyle = "#8be9fd";
-              } else if (div.classList.contains("error")) {
-                ctx.fillStyle = "#ff5555";
-              } else if (div.classList.contains("success")) {
-                ctx.fillStyle = "#50fa7b";
-              } else if (div.classList.contains("warning")) {
-                ctx.fillStyle = "#ffb86c";
-              } else if (div.classList.contains("info")) {
-                ctx.fillStyle = "#bd93f9";
-              } else {
-                ctx.fillStyle = "#e6e6e6";
-              }
-
-              ctx.fillText(line, 20, y);
-              y += lineHeight;
-            }
-            lineIndex++;
-          }
-
-          console.log({
-            scrollTop,
-            clientHeight: terminalBody.clientHeight,
-            scrollHeight: terminalBody.scrollHeight,
-            outputLines: outputDivs.length,
-            startLine,
-            visibleLines,
-          });
-        }
-
-        const terminalInput = document.getElementById("terminal-input");
-        if (terminalInput) {
-          const promptElements = document.querySelectorAll(".prompt");
-          const currentPrompt = promptElements[promptElements.length - 1];
-          const promptText = currentPrompt
-            ? currentPrompt.textContent
-            : "objz:~$ ";
-          const inputValue = terminalInput.value;
-
-          if (lineIndex >= startLine && lineIndex < startLine + visibleLines) {
-            ctx.fillStyle = "#8be9fd";
-            ctx.fillText(promptText, 20, y);
-
-            ctx.fillStyle = "#f8f8f2";
-            const promptWidth = ctx.measureText(promptText).width;
-            ctx.fillText(inputValue, 20 + promptWidth, y);
-
-            if (document.activeElement === terminalInput) {
-              const inputWidth = ctx.measureText(inputValue).width;
-              ctx.fillStyle = "#ffffff";
-              ctx.fillRect(20 + promptWidth + inputWidth, y - 15, 2, 18);
-            }
-          }
-        }
-
-        this.terminalTexture.needsUpdate = true;
       } catch (e) {
         console.warn("Texture update failed:", e);
       }
     };
 
-    this.updateTerminalTexture();
+    // Update texture regularly to sync with terminal changes
     setInterval(() => {
       this.updateTerminalTexture();
-    }, 100);
+    }, 16); // ~60fps updates
   }
 
   setupEventListeners() {
@@ -315,31 +217,7 @@ export class Terminal3D {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    window.objzEnsureAutoscroll = () => {
-      const terminalBody = document.getElementById("terminal-body");
-      if (terminalBody) {
-        terminalBody.scrollTop = terminalBody.scrollHeight;
-      }
-    };
-
-    const terminalOutput = document.getElementById("terminal-output");
-    if (terminalOutput) {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-            setTimeout(() => {
-              window.objzEnsureAutoscroll();
-            }, 0);
-          }
-        });
-      });
-
-      observer.observe(terminalOutput, {
-        childList: true,
-        subtree: true,
-      });
-    }
-
+    // Set up raycasting for screen clicks
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
@@ -363,8 +241,6 @@ export class Terminal3D {
 
       const intersects = this.raycaster.intersectObjects(intersectables);
 
-      const terminalInput = document.getElementById("terminal-input");
-
       if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
         console.log(
@@ -381,55 +257,81 @@ export class Terminal3D {
             clickedObject.name.toLowerCase().includes("screen"));
 
         if (isScreen) {
-          console.log("Screen clicked - focusing terminal input");
-          if (terminalInput) {
-            terminalInput.focus();
-            this.isTerminalFocused = true;
+          console.log("Screen clicked - focusing terminal");
+          this.isTerminalFocused = true;
+
+          // Focus the terminal canvas for keyboard input
+          if (this.terminalCanvas) {
+            this.terminalCanvas.focus();
           }
+
+          // Trigger any terminal focus events if your Rust code needs them
+          const focusEvent = new CustomEvent("terminalFocus");
+          window.dispatchEvent(focusEvent);
         } else {
           console.log("Clicked on non-screen object - removing focus");
-          if (terminalInput) {
-            terminalInput.blur();
-            this.isTerminalFocused = false;
+          this.isTerminalFocused = false;
+
+          if (this.terminalCanvas) {
+            this.terminalCanvas.blur();
           }
+
+          const blurEvent = new CustomEvent("terminalBlur");
+          window.dispatchEvent(blurEvent);
         }
       } else {
         console.log("Clicked on empty space - removing focus");
-        if (terminalInput) {
-          terminalInput.blur();
-          this.isTerminalFocused = false;
+        this.isTerminalFocused = false;
+
+        if (this.terminalCanvas) {
+          this.terminalCanvas.blur();
         }
+
+        const blurEvent = new CustomEvent("terminalBlur");
+        window.dispatchEvent(blurEvent);
       }
     });
 
+    // Handle clicks outside the 3D scene
     document.addEventListener("click", (e) => {
-      const terminalInput = document.getElementById("terminal-input");
-
       if (
         !e.target.closest("#scene-container") &&
         !e.target.closest("#terminal")
       ) {
         console.log("Clicked outside - removing focus");
-        if (terminalInput) {
-          terminalInput.blur();
-          this.isTerminalFocused = false;
+        this.isTerminalFocused = false;
+
+        if (this.terminalCanvas) {
+          this.terminalCanvas.blur();
         }
+
+        const blurEvent = new CustomEvent("terminalBlur");
+        window.dispatchEvent(blurEvent);
       }
     });
 
+    // Forward keyboard events to terminal when focused
     document.addEventListener("keydown", (e) => {
-      const terminalInput = document.getElementById("terminal-input");
+      if (this.isTerminalFocused && this.terminalCanvas) {
+        // Create a new keyboard event and dispatch it to the canvas
+        const terminalKeyEvent = new KeyboardEvent("keydown", {
+          key: e.key,
+          code: e.code,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+        });
 
-      if (
-        terminalInput &&
-        this.isTerminalFocused &&
-        document.activeElement !== terminalInput &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !e.metaKey &&
-        e.key.length === 1
-      ) {
-        terminalInput.focus();
+        this.terminalCanvas.dispatchEvent(terminalKeyEvent);
+
+        // Prevent default if the terminal should handle this key
+        if (
+          !e.ctrlKey ||
+          (e.ctrlKey && ["c", "v", "l"].includes(e.key.toLowerCase()))
+        ) {
+          e.preventDefault();
+        }
       }
     });
   }
@@ -443,5 +345,6 @@ export class Terminal3D {
   dispose() {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     if (this.renderer) this.renderer.dispose();
+    if (this.terminalTexture) this.terminalTexture.dispose();
   }
 }

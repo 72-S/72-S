@@ -72,11 +72,9 @@ src/
   terminal/
     autocomplete.rs
     core.rs
-    dom.rs
     mod.rs
     renderer.rs
   utils/
-    dom.rs
     mod.rs
     panic.rs
   lib.rs
@@ -167,30 +165,6 @@ pub mod history;
 pub mod setup;
 </file>
 
-<file path="src/terminal/dom.rs">
-use web_sys::{window, Element};
-
-impl super::Terminal {
-    pub fn create_div_element(&self, text: &str, class: Option<&str>) -> Element {
-        let doc = window().unwrap().document().unwrap();
-        let div = doc.create_element("div").unwrap();
-        if text.is_empty() {
-            div.set_inner_html("");
-        } else {
-            div.set_text_content(Some(text));
-        }
-        if let Some(cls) = class {
-            div.set_class_name(cls);
-        }
-        div
-    }
-
-    pub fn clear_output(&self) {
-        self.output_element.set_inner_html("");
-    }
-}
-</file>
-
 <file path="src/ascii_art/mod.rs">
 pub mod user;
 
@@ -219,134 +193,6 @@ pub fn user() -> String {
   "Code is poetry in motion"
     "#
     .to_string()
-}
-</file>
-
-<file path="src/boot/boot.rs">
-use crate::terminal::Terminal;
-
-pub async fn boot(term: &Terminal) {
-    let boot_messages = vec![
-        (
-            "Loading Linux kernel version 6.8.9-arch1-1...",
-            "[OK]",
-            "green",
-        ),
-        ("Loading initial ramdisk (initramfs)...", "[OK]", "green"),
-        ("Starting systemd-udevd v254.5-1...", "[OK]", "green"),
-        ("Probing hardware...", "[OK]", "green"),
-        ("Detected storage device: /dev/nvme0n1", "[OK]", "green"),
-        ("Detected storage device: /dev/sda", "[OK]", "green"),
-        ("Started udev Kernel Device Manager.", "[OK]", "green"),
-        ("Activating swap on /dev/sda2...", "[OK]", "green"),
-        ("Mounting root filesystem...", "[OK]", "green"),
-        ("Checking file system on /dev/sda1...", "[OK]", "green"),
-        ("Mounting /boot...", "[OK]", "green"),
-        ("Mounting /home...", "[OK]", "green"),
-        ("Mounting /var...", "[OK]", "green"),
-        ("Starting systemd-journald.service...", "[OK]", "green"),
-        (
-            "Starting systemd-tmpfiles-setup-dev.service...",
-            "[OK]",
-            "green",
-        ),
-        ("Starting systemd-sysctl.service...", "[OK]", "green"),
-        ("Starting Load Kernel Modules...", "[OK]", "green"),
-        ("Loading kernel modules: i915 ext4 fuse...", "[OK]", "green"),
-        (
-            "Started Rule-based Manager for Device Events and Filesystems.",
-            "[OK]",
-            "green",
-        ),
-        ("Starting Network Manager...", "[OK]", "green"),
-        ("Started Network Time Synchronization.", "[OK]", "green"),
-        (
-            "Starting Login Service (systemd-logind)...",
-            "[OK]",
-            "green",
-        ),
-        (
-            "Starting Authorization Manager (polkitd)...",
-            "[OK]",
-            "green",
-        ),
-        ("Starting User Manager for UID 1000...", "[OK]", "green"),
-        ("Started Getty on tty1.", "[OK]", "green"),
-        ("Reached target Multi-User System.", "[OK]", "green"),
-        ("Starting Interface...", "[OK]", "green"),
-    ];
-
-    for (msg, status, color) in boot_messages {
-        term.add_line_boot(msg, status, color).await;
-        term.sleep(15).await;
-    }
-
-    term.add_line("").await;
-    term.add_line_boot("Started objz Terminal", "[OK]", "green")
-        .await;
-    term.sleep(200).await;
-    term.add_line("").await;
-}
-
-pub async fn logo(term: &Terminal) {
-    let logo_lines = vec![
-        "                                                    ",
-        " ░▒▓██████▓▒░░▒▓███████▓▒░       ░▒▓█▓▒░▒▓████████▓▒░ ",
-        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░      ░▒▓█▓▒░",
-        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░    ░▒▓██▓▒░ ",
-        "░▒▓█▓▒░░▒▓█▓▒░▒▓███████▓▒░       ░▒▓█▓▒░  ░▒▓██▓▒░   ",
-        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓██▓▒░     ",
-        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░       ",
-        " ░▒▓██████▓▒░░▒▓███████▓▒░ ░▒▓██████▓▒░░▒▓████████▓▒░",
-        "                                                    ",
-    ];
-
-    for line in logo_lines {
-        term.add_colored_line_typing(line, 10, "cyan").await;
-        term.sleep(30).await;
-    }
-}
-
-pub async fn login(term: &Terminal) {
-    let login_messages = vec![
-        ("Arch Linux 6.6.32-1-lts (tty1)", "", "green"),
-        ("", "", ""),
-        ("login: anonym", "", "white"),
-        ("password: ", "", "white"),
-        ("", "", ""),
-        ("Last login: Mon May 27 13:59:36 2025", "", "white"),
-        ("Type 'help' for further information", "", "yellow"),
-        ("", "", ""),
-    ];
-
-    for (msg, _status, color) in login_messages {
-        if msg.is_empty() {
-            term.add_line("").await;
-        } else if msg.contains("login:") {
-            term.add_line_typing(msg, 50).await;
-        } else if msg.contains("password:") {
-            let full = format!("{}••••••••", msg);
-            term.add_line_typing(&full, 50).await;
-        } else {
-            term.add_line_colored(msg, color).await;
-        }
-        term.sleep(60).await;
-    }
-}
-</file>
-
-<file path="src/boot/mod.rs">
-use crate::terminal::Terminal;
-
-pub mod boot;
-
-impl Terminal {
-    pub async fn run_boot_sequence(&self) {
-        self.clear_output();
-        boot::boot(self).await;
-        boot::logo(self).await;
-        boot::login(self).await;
-    }
 }
 </file>
 
@@ -431,6 +277,205 @@ pub fn neofetch(_args: &[&str]) -> String {
  `++:.                           `-/+/   
  .`                                 `/   "#
         .to_string()
+}
+</file>
+
+<file path=".github/workflows/snake.yml">
+name: Generate snake animation
+
+on:
+  schedule: # execute every 12 hours
+    - cron: "* */12 * * *"
+
+  workflow_dispatch:
+
+  push:
+    branches:
+    - main
+
+jobs:
+  generate:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: generate snake.svg
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: dist/snake.svg?palette=github-dark
+
+
+      - name: push snake.svg to the output branch
+        uses: crazy-max/ghaction-github-pages@v3.1.0
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+</file>
+
+<file path="js/index.js">
+import init from "../pkg/portfolio.js";
+import { Terminal3D } from "./model.js";
+
+init().then(() => {
+  console.log("Portfolio loaded successfully!");
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    window.terminal3d = new Terminal3D();
+  }, 1000);
+});
+
+window.addEventListener("beforeunload", () => {
+  if (window.terminal3d) {
+    window.terminal3d.dispose();
+  }
+});
+</file>
+
+<file path="src/boot/boot.rs">
+use crate::terminal::{renderer::LineOptions, Terminal};
+
+pub async fn boot(term: &Terminal) {
+    let boot_messages = vec![
+        (
+            "Loading Linux kernel version 6.8.9-arch1-1...",
+            "[OK]",
+            "green",
+        ),
+        ("Loading initial ramdisk (initramfs)...", "[OK]", "green"),
+        ("Starting systemd-udevd v254.5-1...", "[OK]", "green"),
+        ("Probing hardware...", "[OK]", "green"),
+        ("Detected storage device: /dev/nvme0n1", "[OK]", "green"),
+        ("Detected storage device: /dev/sda", "[OK]", "green"),
+        ("Started udev Kernel Device Manager.", "[OK]", "green"),
+        ("Activating swap on /dev/sda2...", "[OK]", "green"),
+        ("Mounting root filesystem...", "[OK]", "green"),
+        ("Checking file system on /dev/sda1...", "[OK]", "green"),
+        ("Mounting /boot...", "[OK]", "green"),
+        ("Mounting /home...", "[OK]", "green"),
+        ("Mounting /var...", "[OK]", "green"),
+        ("Starting systemd-journald.service...", "[OK]", "green"),
+        (
+            "Starting systemd-tmpfiles-setup-dev.service...",
+            "[OK]",
+            "green",
+        ),
+        ("Starting systemd-sysctl.service...", "[OK]", "green"),
+        ("Starting Load Kernel Modules...", "[OK]", "green"),
+        ("Loading kernel modules: i915 ext4 fuse...", "[OK]", "green"),
+        (
+            "Started Rule-based Manager for Device Events and Filesystems.",
+            "[OK]",
+            "green",
+        ),
+        ("Starting Network Manager...", "[OK]", "green"),
+        ("Started Network Time Synchronization.", "[OK]", "green"),
+        (
+            "Starting Login Service (systemd-logind)...",
+            "[OK]",
+            "green",
+        ),
+        (
+            "Starting Authorization Manager (polkitd)...",
+            "[OK]",
+            "green",
+        ),
+        ("Starting User Manager for UID 1000...", "[OK]", "green"),
+        ("Started Getty on tty1.", "[OK]", "green"),
+        ("Reached target Multi-User System.", "[OK]", "green"),
+        ("Starting Interface...", "[OK]", "green"),
+    ];
+
+    for (msg, _status, color) in boot_messages {
+        term.add_line(
+            msg,
+            Some(LineOptions::new().with_boot_animation().with_color(color)),
+        )
+        .await;
+        term.sleep(15).await;
+    }
+    term.add_line("", None).await;
+    term.add_line(
+        "Started objz Terminal",
+        Some(LineOptions::new().with_boot_animation().with_color("green")),
+    )
+    .await;
+    term.sleep(200).await;
+    term.add_line("", None).await;
+}
+
+pub async fn logo(term: &Terminal) {
+    let logo_lines = vec![
+        "                                                    ",
+        " ░▒▓██████▓▒░░▒▓███████▓▒░       ░▒▓█▓▒░▒▓████████▓▒░ ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░      ░▒▓█▓▒░",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░    ░▒▓██▓▒░ ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓███████▓▒░       ░▒▓█▓▒░  ░▒▓██▓▒░   ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓██▓▒░     ",
+        "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░       ",
+        " ░▒▓██████▓▒░░▒▓███████▓▒░ ░▒▓██████▓▒░░▒▓████████▓▒░",
+        "                                                    ",
+    ];
+
+    for line in logo_lines {
+        term.add_line(
+            line,
+            Some(LineOptions::new().with_typing(10).with_color("cyan")),
+        )
+        .await;
+        term.sleep(30).await;
+    }
+}
+
+pub async fn login(term: &Terminal) {
+    let login_messages = vec![
+        ("Arch Linux 6.6.32-1-lts (tty1)", "", "green"),
+        ("", "", ""),
+        ("login: anonym", "", "white"),
+        ("password: ", "", "white"),
+        ("", "", ""),
+        ("Last login: Mon May 27 13:59:36 2025", "", "white"),
+        ("Type 'help' for further information", "", "yellow"),
+        ("", "", ""),
+    ];
+
+    for (msg, _status, color) in login_messages {
+        if msg.is_empty() {
+            term.add_line("", None).await;
+        } else if msg.contains("login:") {
+            term.add_line(msg, Some(LineOptions::new().with_typing(50)))
+                .await;
+        } else if msg.contains("password:") {
+            let full = format!("{}••••••••", msg);
+            term.add_line(&full, Some(LineOptions::new().with_typing(50)))
+                .await;
+        } else {
+            term.add_line(msg, Some(LineOptions::new().with_color(color)))
+                .await;
+        }
+        term.sleep(60).await;
+    }
+}
+</file>
+
+<file path="src/boot/mod.rs">
+use crate::terminal::Terminal;
+
+pub mod boot;
+
+impl Terminal {
+    pub async fn init_boot(&self) {
+        self.clear_output();
+        boot::boot(self).await;
+        boot::logo(self).await;
+        boot::login(self).await;
+    }
 }
 </file>
 
@@ -583,7 +628,6 @@ pub enum CompletionResult {
     Multiple(Vec<String>),
 }
 
-// Add the helper function here
 pub fn find_common_prefix(strings: &[String]) -> Option<String> {
     if strings.is_empty() {
         return None;
@@ -608,244 +652,90 @@ pub fn find_common_prefix(strings: &[String]) -> Option<String> {
 }
 </file>
 
-<file path="src/terminal/core.rs">
-use crate::commands::CommandHandler;
-use js_sys::Promise;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Document, Element};
-
-pub struct Terminal {
-    pub output_element: Element,
-    pub command_processor: CommandHandler,
-    pub base_prompt: String,
-    pub height: i32,
-}
-
-impl Terminal {
-    pub fn new(document: &Document) -> Self {
-        let output_element = document.get_element_by_id("terminal-output").unwrap();
-        let command_processor = CommandHandler::new();
-        let base_prompt = "anonym@objz".to_string();
-        let height = 760;
-
-        Self {
-            output_element,
-            command_processor,
-            base_prompt,
-            height,
-        }
-    }
-
-    pub fn get_current_prompt(&self) -> String {
-        let cwd = self.command_processor.get_current_directory();
-        let display_path = if cwd == "/home/objz" {
-            "~".to_string()
-        } else if cwd.starts_with("/home/objz/") {
-            format!("~{}", &cwd["/home/objz".len()..])
-        } else {
-            cwd
-        };
-
-        format!("{}:{}$ ", self.base_prompt, display_path)
-    }
-
-    pub async fn start_intro(&self) {
-        self.run_boot_sequence().await;
-    }
-
-    pub async fn start_shell(&self) {
-        self.setup_input_system();
-    }
-
-    pub async fn sleep(&self, ms: i32) {
-        let promise = Promise::new(&mut |resolve, _| {
-            let w = window().unwrap();
-            let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms);
-        });
-        let _ = JsFuture::from(promise).await;
-    }
-}
-</file>
-
 <file path="src/terminal/mod.rs">
 pub mod autocomplete;
 pub mod core;
-pub mod dom;
 pub mod renderer;
 
 pub use core::Terminal;
 </file>
 
-<file path="src/utils/dom.rs">
-use web_sys::{window, Element};
-
-use crate::input::autoscroll::{ensure_autoscroll, trim_output};
-
-pub fn create_div(text: &str, class: Option<&str>) -> Element {
-    let div = window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .create_element("div")
-        .unwrap();
-
-    if text.is_empty() {
-        div.set_inner_html("");
-    } else {
-        div.set_text_content(Some(text));
-    }
-
-    if let Some(class) = class {
-        div.set_class_name(class);
-    }
-
-    div
-}
-
-pub fn append_line(element: &Element, text: &str, class: Option<&str>) {
-    let div = create_div(text, class);
-    element.append_child(&div).unwrap();
-    trim_output(760);
-    ensure_autoscroll();
-}
-
-pub fn clear_output(element: &Element) {
-    element.set_inner_html("");
-}
-</file>
-
 <file path="src/utils/mod.rs">
-pub mod dom;
 pub mod panic;
 </file>
 
 <file path="src/utils/panic.rs">
-use crate::utils::dom::{append_line, clear_output};
-use js_sys::Promise;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Element};
+use crate::terminal::{renderer::LineOptions, Terminal};
 
-pub async fn system_panic(element: &Element) {
-    clear_output(element);
+pub async fn system_panic(terminal: &Terminal) {
+    terminal.clear_output();
 
     let panic_lines = vec![
-        "⚠️  CRITICAL SYSTEM ERROR ⚠️",
-        "",
-        "Deleting root filesystem...",
-        "rm: removing /usr... ████████████░░░░ 75%",
-        "rm: removing /var... ██████████████░░ 87%",
-        "rm: removing /etc... ████████████████ 100%",
-        "",
-        "SYSTEM DESTROYED ☠️",
-        "",
-        "Just kidding! This is a just website, not your actual system.",
-        "Nice try though! 😉",
-        "",
-        "(Don't actually run 'sudo rm -rf /' on real systems!)",
-        "",
+        ("⚠️  CRITICAL SYSTEM ERROR ⚠️", Some("error"), None),
+        ("", None, None),
+        ("Deleting root filesystem...", Some("warning"), Some(100)),
+        (
+            "rm: removing /usr... ████████████░░░░ 75%",
+            Some("warning"),
+            Some(80),
+        ),
+        (
+            "rm: removing /var... ██████████████░░ 87%",
+            Some("warning"),
+            Some(80),
+        ),
+        (
+            "rm: removing /etc... ████████████████ 100%",
+            Some("warning"),
+            Some(80),
+        ),
+        ("", None, None),
+        ("SYSTEM DESTROYED ☠️", Some("error"), Some(150)),
+        ("", None, None),
+        (
+            "Just kidding! This is a just website, not your actual system.",
+            Some("success"),
+            Some(50),
+        ),
+        ("Nice try though! 😉", Some("success"), None),
+        ("", None, None),
+        (
+            "(Don't actually run 'sudo rm -rf /' on real systems!)",
+            Some("warning"),
+            None,
+        ),
+        ("", None, None),
     ];
 
-    for line in panic_lines {
-        let class = if line.contains("⚠️") || line.contains("☠️") {
-            Some("error")
-        } else if line.contains("████") {
-            Some("warning")
-        } else {
-            None
-        };
-        append_line(element, line, class);
+    for (line, color, typing_speed) in panic_lines {
+        let mut options = LineOptions::new();
 
-        let promise = Promise::new(&mut |resolve, _| {
-            let window = window().unwrap();
-            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 300);
-        });
-        let _ = JsFuture::from(promise).await;
+        if let Some(color_class) = color {
+            options = options.with_color(color_class);
+        }
+
+        if let Some(speed) = typing_speed {
+            options = options.with_typing(speed);
+        }
+
+        terminal.add_line(line, Some(options)).await;
+
+        terminal.sleep(300).await;
     }
 
-    let promise = Promise::new(&mut |resolve, _| {
-        let window = window().unwrap();
-        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 2000);
-    });
-    let _ = JsFuture::from(promise).await;
+    terminal.sleep(2000).await;
 
-    clear_output(element);
-    append_line(
-        element,
-        "System restored! Terminal is back online.",
-        Some("success"),
-    );
-    append_line(element, "", None);
+    terminal.clear_output();
+
+    terminal
+        .add_line(
+            "System restored! Terminal is back online.",
+            Some(LineOptions::new().with_color("success")),
+        )
+        .await;
+
+    terminal.add_line("", None).await;
 }
-</file>
-
-<file path=".github/workflows/snake.yml">
-name: Generate snake animation
-
-on:
-  schedule: # execute every 12 hours
-    - cron: "* */12 * * *"
-
-  workflow_dispatch:
-
-  push:
-    branches:
-    - main
-
-jobs:
-  generate:
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: generate snake.svg
-        uses: Platane/snk/svg-only@v3
-        with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: dist/snake.svg?palette=github-dark
-
-
-      - name: push snake.svg to the output branch
-        uses: crazy-max/ghaction-github-pages@v3.1.0
-        with:
-          target_branch: output
-          build_dir: dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-</file>
-
-<file path="js/index.js">
-import init from "../pkg/portfolio.js";
-import { Terminal3D } from "./model.js";
-
-init().then(() => {
-  console.log("Portfolio loaded successfully!");
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    window.terminal3d = new Terminal3D();
-  }, 1000);
-});
-
-window.addEventListener("beforeunload", () => {
-  if (window.terminal3d) {
-    window.terminal3d.dispose();
-  }
-});
-</file>
-
-<file path=".gitignore">
-/target
-**/*.rs.bk
-Cargo.lock
-bin/
-pkg/
-dist/
-target/
-wasm-pack.log
-repomix-output.xml
 </file>
 
 <file path="build.sh">
@@ -898,6 +788,109 @@ jobs:
           publish_dir: ./dist
 </file>
 
+<file path="src/terminal/core.rs">
+use std::cell::Cell;
+
+use crate::commands::CommandHandler;
+use js_sys::Promise;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{window, CanvasRenderingContext2d, Document, HtmlCanvasElement};
+
+#[derive(Clone)]
+pub struct Terminal {
+    pub canvas: HtmlCanvasElement,
+    pub context: CanvasRenderingContext2d,
+    pub y: Cell<f64>,
+    pub line_height: f64,
+    pub command_handler: CommandHandler,
+    pub base_prompt: String,
+    pub height: i32,
+    pub width: i32,
+}
+
+impl Terminal {
+    pub fn new(document: &Document) -> Self {
+        let canvas = document
+            .get_element_by_id("terminal")
+            .expect("canvas not found")
+            .dyn_into::<HtmlCanvasElement>()
+            .expect("element is not a canvas");
+
+        let context = canvas
+            .get_context("2d")
+            .expect("failed to get 2d context")
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()
+            .expect("failed to cast to CanvasRenderingContext2d");
+
+        let command_handler = CommandHandler::new();
+        let base_prompt = "anonym@objz".to_string();
+        let height = 800;
+        let width = 600;
+
+        Self {
+            canvas,
+            context,
+            y: Cell::new(20.0),
+            line_height: 20.0,
+            command_handler,
+            base_prompt,
+            height,
+            width,
+        }
+    }
+
+    pub fn get_current_prompt(&self) -> String {
+        let cwd = self.command_handler.get_current_directory();
+        let display_path = if cwd == "/home/objz" {
+            "~".to_string()
+        } else if cwd.starts_with("/home/objz/") {
+            format!("~{}", &cwd["/home/objz".len()..])
+        } else {
+            cwd
+        };
+
+        format!("{}:{}$ ", self.base_prompt, display_path)
+    }
+
+    pub async fn sleep(&self, ms: i32) {
+        let promise = Promise::new(&mut |resolve, _reject| {
+            let window = window().unwrap();
+            let closure = Closure::once_into_js(move || {
+                resolve.call0(&JsValue::UNDEFINED).unwrap();
+            });
+            window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    closure.as_ref().unchecked_ref(),
+                    ms,
+                )
+                .unwrap();
+        });
+
+        let _ = JsFuture::from(promise).await;
+    }
+}
+</file>
+
+<file path=".gitignore">
+/target
+**/*.rs.bk
+Cargo.lock
+bin/
+pkg/
+dist/
+target/
+wasm-pack.log
+# repomix-output.xml
+</file>
+
+<file path="serve.sh">
+#!/bin/zsh
+./build.sh
+npx serve dist
+</file>
+
 <file path="js/model.js">
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -912,6 +905,7 @@ export class Terminal3D {
     this.pcModel = null;
     this.screenMesh = null;
     this.terminalTexture = null;
+    this.terminalCanvas = null; // Add reference to terminal canvas
     this.isTerminalFocused = false;
     this.animationId = null;
     this.init();
@@ -1061,25 +1055,24 @@ export class Terminal3D {
   }
 
   async setupTerminalTexture() {
-    const t = document.getElementById("terminal");
-    if (t) t.classList.add("texture-mode");
+    // Get the terminal canvas directly (created by your Rust code)
+    this.terminalCanvas = document.getElementById("terminal");
+
+    if (!this.terminalCanvas) {
+      console.error("Terminal canvas not found!");
+      return;
+    }
+
+    // Wait a frame to ensure canvas is ready
     await new Promise((r) => requestAnimationFrame(r));
 
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 768;
-    canvas.style.position = "absolute";
-    canvas.style.top = "0";
-    canvas.style.left = "0";
-    canvas.style.zIndex = "1000";
-    canvas.style.border = "1px solid red";
-    document.body.appendChild(canvas);
-    const ctx = canvas.getContext("2d");
-    this.terminalTexture = new THREE.CanvasTexture(canvas);
+    // Create Three.js texture from the existing canvas
+    this.terminalTexture = new THREE.CanvasTexture(this.terminalCanvas);
     this.terminalTexture.minFilter = THREE.LinearFilter;
     this.terminalTexture.magFilter = THREE.LinearFilter;
-    this.terminalTexture.flipY = true;
+    this.terminalTexture.flipY = false; // Canvas is already correct orientation
 
+    // Apply texture to screen mesh
     if (this.screenMesh) {
       this.screenMesh.material = new THREE.MeshBasicMaterial({
         map: this.terminalTexture,
@@ -1088,125 +1081,27 @@ export class Terminal3D {
       });
     }
 
-    this.terminalTexture.offset.y = 0.2;
-    this.terminalTexture.repeat.y = 0.9;
+    // Adjust texture mapping if needed
+    this.terminalTexture.offset.y = 0.0;
+    this.terminalTexture.repeat.y = 1.0;
 
+    // Set up automatic texture updates
     this.updateTerminalTexture = () => {
       try {
-        const terminalBody = document.getElementById("terminal-body");
-        const terminalOutput = document.getElementById("terminal-output");
-
-        if (!terminalBody || !terminalOutput) return;
-
-        ctx.fillStyle = "#0a0a0a";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const scrollTop = terminalBody.scrollTop;
-        const bodyHeight = terminalBody.clientHeight;
-
-        const lineHeight = parseInt(ctx.font.match(/\d+/)[0], 10) + 4;
-
-        const startLine = Math.floor(scrollTop / lineHeight);
-        const visibleLines = Math.ceil(bodyHeight / lineHeight) + 2; // +2 buffer
-
-        const outputDivs = Array.from(terminalOutput.children);
-
-        ctx.font = "16px 'JetBrains Mono', monospace";
-
-        ctx.strokeStyle = "#ff0000";
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-        let y = 20;
-        let lineIndex = 0;
-
-        if (y + lineHeight > canvas.height) {
-          y = canvas.height - lineHeight - 10; // give a margin
+        // The canvas is automatically updated by your Rust terminal renderer
+        // We just need to tell Three.js to update the texture
+        if (this.terminalTexture) {
+          this.terminalTexture.needsUpdate = true;
         }
-
-        for (let i = 0; i < outputDivs.length; i++) {
-          const div = outputDivs[i];
-          const text = div.textContent || "";
-
-          const maxChars = Math.floor((canvas.width - 40) / 10);
-          const lines = [];
-          if (text.length > maxChars) {
-            for (let j = 0; j < text.length; j += maxChars) {
-              lines.push(text.substring(j, j + maxChars));
-            }
-          } else {
-            lines.push(text);
-          }
-
-          for (const line of lines) {
-            if (
-              lineIndex >= startLine &&
-              lineIndex < startLine + visibleLines
-            ) {
-              if (div.classList.contains("command")) {
-                ctx.fillStyle = "#8be9fd";
-              } else if (div.classList.contains("error")) {
-                ctx.fillStyle = "#ff5555";
-              } else if (div.classList.contains("success")) {
-                ctx.fillStyle = "#50fa7b";
-              } else if (div.classList.contains("warning")) {
-                ctx.fillStyle = "#ffb86c";
-              } else if (div.classList.contains("info")) {
-                ctx.fillStyle = "#bd93f9";
-              } else {
-                ctx.fillStyle = "#e6e6e6";
-              }
-
-              ctx.fillText(line, 20, y);
-              y += lineHeight;
-            }
-            lineIndex++;
-          }
-
-          console.log({
-            scrollTop,
-            clientHeight: terminalBody.clientHeight,
-            scrollHeight: terminalBody.scrollHeight,
-            outputLines: outputDivs.length,
-            startLine,
-            visibleLines,
-          });
-        }
-
-        const terminalInput = document.getElementById("terminal-input");
-        if (terminalInput) {
-          const promptElements = document.querySelectorAll(".prompt");
-          const currentPrompt = promptElements[promptElements.length - 1];
-          const promptText = currentPrompt
-            ? currentPrompt.textContent
-            : "objz:~$ ";
-          const inputValue = terminalInput.value;
-
-          if (lineIndex >= startLine && lineIndex < startLine + visibleLines) {
-            ctx.fillStyle = "#8be9fd";
-            ctx.fillText(promptText, 20, y);
-
-            ctx.fillStyle = "#f8f8f2";
-            const promptWidth = ctx.measureText(promptText).width;
-            ctx.fillText(inputValue, 20 + promptWidth, y);
-
-            if (document.activeElement === terminalInput) {
-              const inputWidth = ctx.measureText(inputValue).width;
-              ctx.fillStyle = "#ffffff";
-              ctx.fillRect(20 + promptWidth + inputWidth, y - 15, 2, 18);
-            }
-          }
-        }
-
-        this.terminalTexture.needsUpdate = true;
       } catch (e) {
         console.warn("Texture update failed:", e);
       }
     };
 
-    this.updateTerminalTexture();
+    // Update texture regularly to sync with terminal changes
     setInterval(() => {
       this.updateTerminalTexture();
-    }, 100);
+    }, 16); // ~60fps updates
   }
 
   setupEventListeners() {
@@ -1216,31 +1111,7 @@ export class Terminal3D {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    window.objzEnsureAutoscroll = () => {
-      const terminalBody = document.getElementById("terminal-body");
-      if (terminalBody) {
-        terminalBody.scrollTop = terminalBody.scrollHeight;
-      }
-    };
-
-    const terminalOutput = document.getElementById("terminal-output");
-    if (terminalOutput) {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-            setTimeout(() => {
-              window.objzEnsureAutoscroll();
-            }, 0);
-          }
-        });
-      });
-
-      observer.observe(terminalOutput, {
-        childList: true,
-        subtree: true,
-      });
-    }
-
+    // Set up raycasting for screen clicks
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
@@ -1264,8 +1135,6 @@ export class Terminal3D {
 
       const intersects = this.raycaster.intersectObjects(intersectables);
 
-      const terminalInput = document.getElementById("terminal-input");
-
       if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
         console.log(
@@ -1282,55 +1151,81 @@ export class Terminal3D {
             clickedObject.name.toLowerCase().includes("screen"));
 
         if (isScreen) {
-          console.log("Screen clicked - focusing terminal input");
-          if (terminalInput) {
-            terminalInput.focus();
-            this.isTerminalFocused = true;
+          console.log("Screen clicked - focusing terminal");
+          this.isTerminalFocused = true;
+
+          // Focus the terminal canvas for keyboard input
+          if (this.terminalCanvas) {
+            this.terminalCanvas.focus();
           }
+
+          // Trigger any terminal focus events if your Rust code needs them
+          const focusEvent = new CustomEvent("terminalFocus");
+          window.dispatchEvent(focusEvent);
         } else {
           console.log("Clicked on non-screen object - removing focus");
-          if (terminalInput) {
-            terminalInput.blur();
-            this.isTerminalFocused = false;
+          this.isTerminalFocused = false;
+
+          if (this.terminalCanvas) {
+            this.terminalCanvas.blur();
           }
+
+          const blurEvent = new CustomEvent("terminalBlur");
+          window.dispatchEvent(blurEvent);
         }
       } else {
         console.log("Clicked on empty space - removing focus");
-        if (terminalInput) {
-          terminalInput.blur();
-          this.isTerminalFocused = false;
+        this.isTerminalFocused = false;
+
+        if (this.terminalCanvas) {
+          this.terminalCanvas.blur();
         }
+
+        const blurEvent = new CustomEvent("terminalBlur");
+        window.dispatchEvent(blurEvent);
       }
     });
 
+    // Handle clicks outside the 3D scene
     document.addEventListener("click", (e) => {
-      const terminalInput = document.getElementById("terminal-input");
-
       if (
         !e.target.closest("#scene-container") &&
         !e.target.closest("#terminal")
       ) {
         console.log("Clicked outside - removing focus");
-        if (terminalInput) {
-          terminalInput.blur();
-          this.isTerminalFocused = false;
+        this.isTerminalFocused = false;
+
+        if (this.terminalCanvas) {
+          this.terminalCanvas.blur();
         }
+
+        const blurEvent = new CustomEvent("terminalBlur");
+        window.dispatchEvent(blurEvent);
       }
     });
 
+    // Forward keyboard events to terminal when focused
     document.addEventListener("keydown", (e) => {
-      const terminalInput = document.getElementById("terminal-input");
+      if (this.isTerminalFocused && this.terminalCanvas) {
+        // Create a new keyboard event and dispatch it to the canvas
+        const terminalKeyEvent = new KeyboardEvent("keydown", {
+          key: e.key,
+          code: e.code,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+        });
 
-      if (
-        terminalInput &&
-        this.isTerminalFocused &&
-        document.activeElement !== terminalInput &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !e.metaKey &&
-        e.key.length === 1
-      ) {
-        terminalInput.focus();
+        this.terminalCanvas.dispatchEvent(terminalKeyEvent);
+
+        // Prevent default if the terminal should handle this key
+        if (
+          !e.ctrlKey ||
+          (e.ctrlKey && ["c", "v", "l"].includes(e.key.toLowerCase()))
+        ) {
+          e.preventDefault();
+        }
       }
     });
   }
@@ -1344,441 +1239,9 @@ export class Terminal3D {
   dispose() {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     if (this.renderer) this.renderer.dispose();
+    if (this.terminalTexture) this.terminalTexture.dispose();
   }
 }
-</file>
-
-<file path="src/input/setup.rs">
-use crate::input::autoscroll::ensure_autoscroll;
-use crate::input::history::CommandHistory;
-use crate::terminal::Terminal;
-use crate::utils::{
-    dom::{append_line, clear_output},
-    panic::system_panic,
-};
-use js_sys::Promise;
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::{spawn_local, JsFuture};
-use web_sys::{window, Event, HtmlTextAreaElement, KeyboardEvent};
-
-impl Terminal {
-    pub fn setup_input_system(&self) {
-        self.create_prompt_input_with_cursor();
-        self.show_prompt();
-        self.setup_auto_resize();
-        self.setup_typing_animation();
-        self.setup_key_handler();
-    }
-
-    fn create_prompt_input_with_cursor(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let body = doc.get_element_by_id("terminal-body").unwrap();
-
-        let prompt_div = doc.create_element("div").unwrap();
-        prompt_div.set_class_name("prompt-line");
-
-        let label = doc.create_element("span").unwrap();
-        label.set_class_name("prompt");
-        label.set_text_content(Some(&self.get_current_prompt()));
-
-        let input_wrapper = doc.create_element("div").unwrap();
-        input_wrapper.set_class_name("input-container");
-
-        let textarea = doc
-            .create_element("textarea")
-            .unwrap()
-            .dyn_into::<HtmlTextAreaElement>()
-            .unwrap();
-        textarea.set_id("terminal-input");
-        textarea.set_class_name("terminal-input-field");
-        textarea.set_attribute("autocomplete", "off").unwrap();
-        textarea.set_attribute("spellcheck", "false").unwrap();
-        textarea.set_attribute("rows", "1").unwrap();
-        textarea.set_attribute("wrap", "soft").unwrap();
-
-        input_wrapper.append_child(&textarea).unwrap();
-        prompt_div.append_child(&label).unwrap();
-        prompt_div.append_child(&input_wrapper).unwrap();
-        body.append_child(&prompt_div).unwrap();
-
-        ensure_autoscroll();
-    }
-
-    fn setup_auto_resize(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc.get_element_by_id("terminal-input").unwrap();
-        let clone = input.clone();
-
-        let on_input = Closure::wrap(Box::new(move |_e: Event| {
-            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
-                tx.style().set_property("height", "auto").unwrap();
-                let scroll_h = tx.scroll_height();
-                let line_h = 22;
-                let min_h = line_h;
-                let max_h = line_h * 10;
-                let h = scroll_h.max(min_h).min(max_h);
-                tx.style()
-                    .set_property("height", &format!("{}px", h))
-                    .unwrap();
-                let rows = (h / line_h).max(1);
-                tx.set_attribute("rows", &rows.to_string()).unwrap();
-            }
-        }) as Box<dyn FnMut(_)>);
-
-        input
-            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
-            .unwrap();
-        on_input.forget();
-    }
-
-    fn setup_typing_animation(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc.get_element_by_id("terminal-input").unwrap();
-        let clone = input.clone();
-
-        let on_input = Closure::wrap(Box::new(move |_e: Event| {
-            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
-                tx.set_class_name("terminal-input-field typing");
-                let tx_clone = tx.clone();
-                let rm_typing = Closure::wrap(Box::new(move || {
-                    tx_clone.set_class_name("terminal-input-field");
-                }) as Box<dyn FnMut()>);
-
-                window()
-                    .unwrap()
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                        rm_typing.as_ref().unchecked_ref(),
-                        150,
-                    )
-                    .unwrap();
-                rm_typing.forget();
-            }
-        }) as Box<dyn FnMut(_)>);
-
-        input
-            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
-            .unwrap();
-        on_input.forget();
-    }
-
-    fn setup_key_handler(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc
-            .get_element_by_id("terminal-input")
-            .unwrap()
-            .dyn_into::<HtmlTextAreaElement>()
-            .unwrap();
-        let out_el = self.output_element.clone();
-        let mut history = {
-            let mut h = CommandHistory::new(50);
-            for cmd in &["help", "clear", "ls"] {
-                h.add(cmd.to_string());
-            }
-            h
-        };
-        let mut processor = self.command_processor.clone();
-        let base_prompt = self.base_prompt.clone();
-        let clone_in = input.clone();
-
-        use std::cell::RefCell;
-        use std::rc::Rc;
-        let autocomplete = Rc::new(RefCell::new(
-            crate::terminal::autocomplete::AutoComplete::new(),
-        ));
-
-        let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
-            "Tab" => {
-                ev.prevent_default();
-                let current_input = clone_in.value();
-                let current_path = {
-                    use crate::commands::filesystem::CURRENT_PATH;
-                    CURRENT_PATH.lock().unwrap().clone()
-                };
-                let completion_result = autocomplete
-                    .borrow_mut()
-                    .complete(&current_input, &current_path);
-
-                match completion_result {
-                    crate::terminal::autocomplete::CompletionResult::Single(completion) => {
-                        let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
-                        if parts.len() <= 1 {
-                            clone_in.set_value(&format!("{} ", completion));
-                        } else {
-                            let mut new_parts = parts[..parts.len() - 1].to_vec();
-                            new_parts.push(&completion);
-                            clone_in.set_value(&format!("{} ", new_parts.join(" ")));
-                        }
-                        let text_length = clone_in.value().len() as u32;
-                        let _ = clone_in.set_selection_range(text_length, text_length);
-                    }
-                    crate::terminal::autocomplete::CompletionResult::Multiple(matches) => {
-                        let current_prompt = {
-                            let cwd = processor.get_current_directory();
-                            let display_path = if cwd == "/home/objz" {
-                                "~".to_string()
-                            } else if cwd.starts_with("/home/objz/") {
-                                format!("~{}", &cwd["/home/objz".len()..])
-                            } else {
-                                cwd
-                            };
-                            format!("{}:{}$ ", base_prompt, display_path)
-                        };
-                        let line = format!("{}{}", current_prompt, current_input);
-                        append_line(&out_el, &line, Some("command"));
-
-                        let matches_per_line = 4;
-                        let mut output = String::new();
-                        for chunk in matches.chunks(matches_per_line) {
-                            let row = chunk
-                                .iter()
-                                .map(|s| format!("{:<20}", s))
-                                .collect::<Vec<_>>()
-                                .join("");
-                            output.push_str(&row);
-                            output.push('\n');
-                        }
-                        for line in output.lines() {
-                            if !line.trim().is_empty() {
-                                append_line(&out_el, line, Some("completion"));
-                            }
-                        }
-                        if let Some(common) =
-                            crate::terminal::autocomplete::find_common_prefix(&matches)
-                        {
-                            let parts: Vec<&str> =
-                                current_input.trim().split_whitespace().collect();
-                            if parts.len() <= 1 && common.len() > current_input.trim().len() {
-                                clone_in.set_value(&common);
-                            } else if parts.len() > 1 {
-                                let prefix = parts[..parts.len() - 1].join(" ");
-                                clone_in.set_value(&format!("{} {}", prefix, common));
-                            }
-                        }
-                        ensure_autoscroll();
-                    }
-                    crate::terminal::autocomplete::CompletionResult::None => {}
-                }
-            }
-
-            "Enter" if !ev.shift_key() => {
-                ev.prevent_default();
-                let val = clone_in.value();
-                if !val.trim().is_empty() {
-                    history.add(val.clone());
-                }
-                clone_in.set_value("");
-                clone_in.style().set_property("height", "auto").unwrap();
-                clone_in.set_attribute("rows", "1").unwrap();
-
-                let current_prompt = {
-                    let cwd = processor.get_current_directory();
-                    let display_path = if cwd == "/home/objz" {
-                        "~".to_string()
-                    } else if cwd.starts_with("/home/objz/") {
-                        format!("~{}", &cwd["/home/objz".len()..])
-                    } else {
-                        cwd
-                    };
-                    format!("{}:{}$ ", base_prompt, display_path)
-                };
-
-                let line = format!("{}{}", current_prompt, val);
-                append_line(&out_el, &line, Some("command"));
-                ensure_autoscroll();
-
-                let (result, directory_changed) = processor.handle(&val);
-
-                match result.as_str() {
-                    "CLEAR_SCREEN" => clear_output(&out_el),
-                    "SYSTEM_PANIC" => {
-                        let out_clone = out_el.clone();
-                        spawn_local(async move {
-                            system_panic(&out_clone).await;
-                        });
-                    }
-                    _ => {
-                        let out_clone = out_el.clone();
-                        let lines: Vec<String> = result.lines().map(str::to_owned).collect();
-                        spawn_local(async move {
-                            for line in lines {
-                                append_line(&out_clone, &line, None);
-                                // ensure_autoscroll();
-                                let promise = Promise::new(&mut |resolve, _| {
-                                    window()
-                                        .unwrap()
-                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
-                                            &resolve, 0,
-                                        )
-                                        .unwrap();
-                                });
-                                let _ = JsFuture::from(promise).await;
-                            }
-                        });
-                    }
-                }
-
-                if directory_changed {
-                    let doc = window().unwrap().document().unwrap();
-                    if let Some(prompt_el) = doc.query_selector(".prompt-line .prompt").unwrap() {
-                        let new_cwd = processor.get_current_directory();
-                        let new_display = if new_cwd == "/home/objz" {
-                            "~".to_string()
-                        } else if new_cwd.starts_with("/home/objz/") {
-                            format!("~{}", &new_cwd["/home/objz".len()..])
-                        } else {
-                            new_cwd
-                        };
-                        prompt_el
-                            .set_text_content(Some(&format!("{}:{}$ ", base_prompt, new_display)));
-                    }
-                }
-            }
-
-            "ArrowUp" => {
-                ev.prevent_default();
-                if let Some(cmd) = history.previous() {
-                    clone_in.set_value(&cmd);
-                    clone_in.focus().unwrap();
-                    let len = cmd.len() as u32;
-                    let _ = clone_in.set_selection_range(len, len);
-                    // clone for timeout instead of moving original
-                    let input_clone = clone_in.clone();
-                    let timeout = Closure::wrap(Box::new(move || {
-                        let _ = input_clone.set_selection_range(len, len);
-                    }) as Box<dyn FnMut()>);
-                    window()
-                        .unwrap()
-                        .set_timeout_with_callback_and_timeout_and_arguments_0(
-                            timeout.as_ref().unchecked_ref(),
-                            0,
-                        )
-                        .unwrap();
-                    timeout.forget();
-                }
-            }
-
-            "ArrowDown" => {
-                ev.prevent_default();
-                if let Some(cmd) = history.next() {
-                    clone_in.set_value(&cmd);
-                } else {
-                    clone_in.set_value("");
-                }
-            }
-            _ => {}
-        }) as Box<dyn FnMut(_)>);
-
-        input
-            .add_event_listener_with_callback("keydown", handler.as_ref().unchecked_ref())
-            .unwrap();
-        handler.forget();
-    }
-
-    fn show_prompt(&self) {
-        let doc = window().unwrap().document().unwrap();
-        let input = doc
-            .get_element_by_id("terminal-input")
-            .unwrap()
-            .dyn_into::<HtmlTextAreaElement>()
-            .unwrap();
-        input.focus().unwrap();
-        ensure_autoscroll();
-    }
-}
-</file>
-
-<file path="src/terminal/renderer.rs">
-use crate::input::autoscroll::{ensure_autoscroll, trim_output};
-use crate::terminal::Terminal;
-use crate::utils::dom::append_line;
-
-impl Terminal {
-    pub async fn add_line_boot(&self, task: &str, status: &str, _color: &str) {
-        let div = self.create_div_element("", Some("boot-line"));
-        self.output_element.append_child(&div).unwrap();
-        ensure_autoscroll();
-
-        for i in 0..4 {
-            let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-            let text = format!("{} {}", task, spinner[i]);
-            div.set_inner_html(&text);
-            ensure_autoscroll();
-            self.sleep(60).await;
-        }
-
-        let final_html = if status.is_empty() {
-            task.to_string()
-        } else {
-            format!("{} <span class=\"status\">{}</span>", task, status)
-        };
-        div.set_inner_html(&final_html);
-        trim_output(self.height);
-        ensure_autoscroll();
-    }
-
-    pub async fn add_line_typing(&self, text: &str, speed: u32) {
-        let div = self.create_div_element("", None);
-        div.set_class_name("typing-line");
-        self.output_element.append_child(&div).unwrap();
-        ensure_autoscroll();
-
-        let mut buf = String::new();
-        for (i, ch) in text.chars().enumerate() {
-            buf.push(ch);
-            let display = if i < text.len() - 1 {
-                format!("{}<span class=\"typing-cursor\">█</span>", buf)
-            } else {
-                buf.clone()
-            };
-            div.set_inner_html(&display);
-            ensure_autoscroll();
-            self.sleep(speed as i32).await;
-        }
-        div.set_inner_html(&buf);
-        trim_output(self.height);
-        ensure_autoscroll();
-    }
-
-    pub async fn add_colored_line_typing(&self, text: &str, speed: u32, color: &str) {
-        let div = self.create_div_element("", Some(color));
-        div.set_class_name(&format!("typing-line {}", color));
-        self.output_element.append_child(&div).unwrap();
-        ensure_autoscroll();
-
-        let mut buf = String::new();
-        for (i, ch) in text.chars().enumerate() {
-            buf.push(ch);
-            let display = if i < text.len() - 1 {
-                format!("{}<span class=\"typing-cursor\">█</span>", buf)
-            } else {
-                buf.clone()
-            };
-            div.set_inner_html(&display);
-            ensure_autoscroll();
-            self.sleep(speed as i32).await;
-        }
-        div.set_inner_html(&buf);
-        trim_output(self.height);
-        ensure_autoscroll();
-    }
-
-    pub async fn add_line(&self, text: &str) {
-        append_line(&self.output_element, text, None);
-        ensure_autoscroll();
-    }
-
-    pub async fn add_line_colored(&self, text: &str, color: &str) {
-        append_line(&self.output_element, text, Some(color));
-        ensure_autoscroll();
-    }
-}
-</file>
-
-<file path="serve.sh">
-#!/bin/zsh
-./build.sh
-npx serve dist
 </file>
 
 <file path="src/commands/filesystem.rs">
@@ -2736,6 +2199,687 @@ impl CommandHandler {
 }
 </file>
 
+<file path="src/input/setup.rs">
+use crate::input::history::CommandHistory;
+use crate::terminal::Terminal;
+use crate::utils::panic;
+use crate::{input::autoscroll::ensure_autoscroll, terminal::renderer::LineOptions};
+use js_sys::Promise;
+use std::cell::RefCell;
+use std::rc::Rc;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
+use web_sys::{window, Event, HtmlTextAreaElement, KeyboardEvent};
+
+impl Terminal {
+    pub fn init_shell(&self) {
+        self.create_prompt_input();
+        self.show_prompt();
+        self.setup_input_handlers();
+    }
+
+    fn create_prompt_input(&self) {
+        let doc = window().unwrap().document().unwrap();
+
+        let prompt_div = doc.create_element("div").unwrap();
+        prompt_div.set_class_name("prompt-line");
+
+        let label = doc.create_element("span").unwrap();
+        label.set_class_name("prompt");
+        label.set_text_content(Some(&self.get_current_prompt()));
+
+        let textarea = doc
+            .create_element("textarea")
+            .unwrap()
+            .dyn_into::<HtmlTextAreaElement>()
+            .unwrap();
+        textarea.set_id("terminal-input");
+        textarea.set_class_name("terminal-input");
+        textarea.set_attribute("autocomplete", "off").unwrap();
+        textarea.set_attribute("spellcheck", "false").unwrap();
+        textarea.set_attribute("rows", "1").unwrap();
+        textarea.set_attribute("wrap", "soft").unwrap();
+
+        prompt_div.append_child(&label).unwrap();
+        prompt_div.append_child(&textarea).unwrap();
+        self.canvas.append_child(&prompt_div).unwrap();
+
+        ensure_autoscroll();
+    }
+
+    fn setup_input_handlers(&self) {
+        self.setup_auto_resize();
+        self.setup_typing_animation();
+        self.setup_key_handler();
+    }
+
+    fn setup_auto_resize(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc.get_element_by_id("terminal-input").unwrap();
+        let clone = input.clone();
+
+        let on_input = Closure::wrap(Box::new(move |_e: Event| {
+            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
+                tx.style().set_property("height", "auto").unwrap();
+                let scroll_h = tx.scroll_height();
+
+                let line_h = 22;
+                let max_lines = 10;
+
+                let min_h = line_h;
+                let max_h = line_h * max_lines;
+                let h = scroll_h.max(min_h).min(max_h);
+
+                tx.style()
+                    .set_property("height", &format!("{}px", h))
+                    .unwrap();
+
+                let rows = (h / line_h).max(1);
+                tx.set_attribute("rows", &rows.to_string()).unwrap();
+            }
+        }) as Box<dyn FnMut(_)>);
+
+        input
+            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
+            .unwrap();
+        on_input.forget();
+    }
+
+    fn setup_typing_animation(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc.get_element_by_id("terminal-input").unwrap();
+        let clone = input.clone();
+
+        let on_input = Closure::wrap(Box::new(move |_e: Event| {
+            if let Some(tx) = clone.dyn_ref::<HtmlTextAreaElement>() {
+                tx.set_class_name("terminal-input typing");
+                let tx_clone = tx.clone();
+
+                let rm_typing = Closure::wrap(Box::new(move || {
+                    tx_clone.set_class_name("terminal-input");
+                }) as Box<dyn FnMut()>);
+
+                window()
+                    .unwrap()
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                        rm_typing.as_ref().unchecked_ref(),
+                        150,
+                    )
+                    .unwrap();
+                rm_typing.forget();
+            }
+        }) as Box<dyn FnMut(_)>);
+
+        input
+            .add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())
+            .unwrap();
+        on_input.forget();
+    }
+
+    fn setup_key_handler(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc
+            .get_element_by_id("terminal-input")
+            .unwrap()
+            .dyn_into::<HtmlTextAreaElement>()
+            .unwrap();
+
+        let mut history = {
+            let mut h = CommandHistory::new(50);
+            for cmd in &["help", "clear", "ls"] {
+                h.add(cmd.to_string());
+            }
+            h
+        };
+
+        let mut processor = self.command_handler.clone();
+        let base_prompt = self.base_prompt.clone();
+        let clone_in = input.clone();
+        let term_clone = self.clone();
+
+        let autocomplete = Rc::new(RefCell::new(
+            crate::terminal::autocomplete::AutoComplete::new(),
+        ));
+
+        let handler = Closure::wrap(Box::new(move |ev: KeyboardEvent| match ev.key().as_str() {
+            "Tab" => {
+                ev.prevent_default();
+                Self::handle_tab_completion(
+                    &clone_in,
+                    &autocomplete,
+                    &processor,
+                    &base_prompt,
+                    &term_clone,
+                );
+            }
+
+            "Enter" if !ev.shift_key() => {
+                ev.prevent_default();
+                Self::handle_enter(
+                    &clone_in,
+                    &mut history,
+                    &mut processor,
+                    &base_prompt,
+                    &term_clone,
+                );
+            }
+
+            "ArrowUp" => {
+                ev.prevent_default();
+                Self::handle_history_up(&clone_in, &mut history);
+            }
+
+            "ArrowDown" => {
+                ev.prevent_default();
+                Self::handle_history_down(&clone_in, &mut history);
+            }
+
+            _ => {}
+        }) as Box<dyn FnMut(_)>);
+
+        input
+            .add_event_listener_with_callback("keydown", handler.as_ref().unchecked_ref())
+            .unwrap();
+        handler.forget();
+    }
+
+    fn handle_tab_completion(
+        input: &HtmlTextAreaElement,
+        autocomplete: &Rc<RefCell<crate::terminal::autocomplete::AutoComplete>>,
+        processor: &crate::commands::CommandHandler,
+        base_prompt: &str,
+        terminal: &Terminal,
+    ) {
+        let current_input = input.value();
+        let current_path = {
+            use crate::commands::filesystem::CURRENT_PATH;
+            CURRENT_PATH.lock().unwrap().clone()
+        };
+
+        let completion_result = autocomplete
+            .borrow_mut()
+            .complete(&current_input, &current_path);
+
+        match completion_result {
+            crate::terminal::autocomplete::CompletionResult::Single(completion) => {
+                let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
+                if parts.len() <= 1 {
+                    input.set_value(&format!("{} ", completion));
+                } else {
+                    let mut new_parts = parts[..parts.len() - 1].to_vec();
+                    new_parts.push(&completion);
+                    input.set_value(&format!("{} ", new_parts.join(" ")));
+                }
+                let text_length = input.value().len() as u32;
+                let _ = input.set_selection_range(text_length, text_length);
+            }
+
+            crate::terminal::autocomplete::CompletionResult::Multiple(matches) => {
+                let current_prompt = Self::build_prompt(processor, base_prompt);
+                let line = format!("{}{}", current_prompt, current_input);
+
+                let term_clone_for_line = terminal.clone();
+                spawn_local(async move {
+                    term_clone_for_line
+                        .add_line(&line, Some(LineOptions::new().with_color("command")))
+                        .await;
+                });
+
+                Self::display_completions(&matches, terminal);
+
+                if let Some(common) = crate::terminal::autocomplete::find_common_prefix(&matches) {
+                    let parts: Vec<&str> = current_input.trim().split_whitespace().collect();
+                    if parts.len() <= 1 && common.len() > current_input.trim().len() {
+                        input.set_value(&common);
+                    } else if parts.len() > 1 {
+                        let prefix = parts[..parts.len() - 1].join(" ");
+                        input.set_value(&format!("{} {}", prefix, common));
+                    }
+                }
+                ensure_autoscroll();
+            }
+
+            crate::terminal::autocomplete::CompletionResult::None => {}
+        }
+    }
+
+    fn handle_enter(
+        input: &HtmlTextAreaElement,
+        history: &mut CommandHistory,
+        processor: &mut crate::commands::CommandHandler,
+        base_prompt: &str,
+        terminal: &Terminal,
+    ) {
+        let val = input.value();
+        if !val.trim().is_empty() {
+            history.add(val.clone());
+        }
+
+        input.set_value("");
+        input.style().set_property("height", "auto").unwrap();
+        input.set_attribute("rows", "1").unwrap();
+
+        let current_prompt = Self::build_prompt(processor, base_prompt);
+        let line = format!("{}{}", current_prompt, val);
+
+        let term_clone_for_command = terminal.clone();
+        spawn_local(async move {
+            term_clone_for_command
+                .add_line(&line, Some(LineOptions::new().with_color("command")))
+                .await;
+        });
+        ensure_autoscroll();
+
+        let (result, directory_changed) = processor.handle(&val);
+
+        match result.as_str() {
+            "CLEAR_SCREEN" => terminal.clear_output(),
+            "SYSTEM_PANIC" => {
+                let panic_clone = terminal.clone();
+                spawn_local(async move {
+                    panic::system_panic(&panic_clone).await;
+                });
+            }
+            _ => {
+                Self::display_command_output(&result, terminal);
+            }
+        }
+
+        if directory_changed {
+            Self::update_prompt_display(processor, base_prompt);
+        }
+    }
+
+    fn handle_history_up(input: &HtmlTextAreaElement, history: &mut CommandHistory) {
+        if let Some(cmd) = history.previous() {
+            input.set_value(&cmd);
+            input.focus().unwrap();
+            let len = cmd.len() as u32;
+            let _ = input.set_selection_range(len, len);
+
+            let input_clone = input.clone();
+            let timeout = Closure::wrap(Box::new(move || {
+                let _ = input_clone.set_selection_range(len, len);
+            }) as Box<dyn FnMut()>);
+
+            window()
+                .unwrap()
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    timeout.as_ref().unchecked_ref(),
+                    0,
+                )
+                .unwrap();
+            timeout.forget();
+        }
+    }
+
+    fn handle_history_down(input: &HtmlTextAreaElement, history: &mut CommandHistory) {
+        if let Some(cmd) = history.next() {
+            input.set_value(&cmd);
+        } else {
+            input.set_value("");
+        }
+    }
+
+    fn build_prompt(processor: &crate::commands::CommandHandler, base_prompt: &str) -> String {
+        let cwd = processor.get_current_directory();
+        let display_path = if cwd == "/home/objz" {
+            "~".to_string()
+        } else if cwd.starts_with("/home/objz/") {
+            format!("~{}", &cwd["/home/objz".len()..])
+        } else {
+            cwd
+        };
+        format!("{}:{}$ ", base_prompt, display_path)
+    }
+
+    fn display_completions(matches: &[String], terminal: &Terminal) {
+        let matches_per_line = 4;
+        let mut output = String::new();
+
+        for chunk in matches.chunks(matches_per_line) {
+            let row = chunk
+                .iter()
+                .map(|s| format!("{:<20}", s))
+                .collect::<Vec<_>>()
+                .join("");
+            output.push_str(&row);
+            output.push('\n');
+        }
+
+        let term_clone_for_output = terminal.clone();
+        spawn_local(async move {
+            for line in output.lines() {
+                if !line.trim().is_empty() {
+                    term_clone_for_output
+                        .add_line(&line, Some(LineOptions::new().with_color("completion")))
+                        .await;
+                }
+            }
+        });
+    }
+
+    fn display_command_output(result: &str, terminal: &Terminal) {
+        let term_clone_for_output = terminal.clone();
+        let lines: Vec<String> = result.lines().map(str::to_owned).collect();
+
+        spawn_local(async move {
+            for line in lines {
+                term_clone_for_output.add_line(&line, None).await;
+
+                let promise = Promise::new(&mut |resolve, _| {
+                    window()
+                        .unwrap()
+                        .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 0)
+                        .unwrap();
+                });
+                let _ = JsFuture::from(promise).await;
+            }
+        });
+    }
+
+    fn update_prompt_display(processor: &crate::commands::CommandHandler, base_prompt: &str) {
+        let doc = window().unwrap().document().unwrap();
+        if let Some(prompt_el) = doc.query_selector(".prompt-line .prompt").unwrap() {
+            let new_prompt = Self::build_prompt(processor, base_prompt);
+            prompt_el.set_text_content(Some(&new_prompt));
+        }
+    }
+
+    fn show_prompt(&self) {
+        let doc = window().unwrap().document().unwrap();
+        let input = doc
+            .get_element_by_id("terminal-input")
+            .unwrap()
+            .dyn_into::<HtmlTextAreaElement>()
+            .unwrap();
+        input.focus().unwrap();
+        ensure_autoscroll();
+    }
+}
+</file>
+
+<file path="src/terminal/renderer.rs">
+use crate::input::autoscroll::{ensure_autoscroll, trim_output};
+use crate::terminal::Terminal;
+use wasm_bindgen::JsValue;
+
+#[derive(Default)]
+pub struct LineOptions {
+    pub color: Option<String>,
+    pub typing_speed: Option<u32>,
+    pub boot_animation: bool,
+}
+
+impl LineOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_color(mut self, color: &str) -> Self {
+        self.color = Some(color.to_string());
+        self
+    }
+
+    pub fn with_typing(mut self, speed: u32) -> Self {
+        self.typing_speed = Some(speed);
+        self
+    }
+
+    pub fn with_boot_animation(mut self) -> Self {
+        self.boot_animation = true;
+        self
+    }
+}
+
+impl Terminal {
+    pub async fn add_line(&self, text: &str, options: Option<LineOptions>) {
+        let opts = options.unwrap_or_default();
+
+        if opts.boot_animation {
+            self.boot(text, &opts).await;
+        } else if let Some(speed) = opts.typing_speed {
+            self.typing(text, speed, &opts).await;
+        } else {
+            self.simple(text, &opts).await;
+        }
+    }
+
+    async fn boot(&self, task: &str, opts: &LineOptions) {
+        let current_y = self.y.get();
+
+        let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        for &spin_char in &spinner[0..4] {
+            let text = format!("{} {}", task, spin_char);
+            self.clear_line_at_y(current_y);
+            self.draw_text(&text, current_y, opts.color.as_deref());
+            ensure_autoscroll();
+            self.sleep(60).await;
+        }
+
+        let final_text = format!("{} [OK]", task);
+        self.clear_line_at_y(current_y);
+        self.draw_boot_line(&final_text, current_y, opts.color.as_deref());
+
+        self.advance_y();
+        trim_output(self.height);
+        ensure_autoscroll();
+    }
+
+    async fn typing(&self, text: &str, speed: u32, opts: &LineOptions) {
+        let current_y = self.y.get();
+
+        let mut buf = String::new();
+        let chars: Vec<char> = text.chars().collect();
+
+        for (i, &ch) in chars.iter().enumerate() {
+            buf.push(ch);
+            self.clear_line_at_y(current_y);
+
+            let display = if i < chars.len() - 1 {
+                format!("{}█", buf)
+            } else {
+                buf.clone()
+            };
+
+            self.draw_typing_text(
+                &display,
+                current_y,
+                opts.color.as_deref(),
+                i < chars.len() - 1,
+            );
+            ensure_autoscroll();
+            self.sleep(speed as i32).await;
+        }
+
+        self.clear_line_at_y(current_y);
+        self.draw_text(&buf, current_y, opts.color.as_deref());
+
+        self.advance_y();
+        trim_output(self.height);
+        ensure_autoscroll();
+    }
+
+    async fn simple(&self, text: &str, opts: &LineOptions) {
+        self.append_line(text, opts.color.as_deref());
+        ensure_autoscroll();
+    }
+
+    fn draw_text(&self, text: &str, y: f64, color: Option<&str>) {
+        self.context.save();
+
+        self.context.set_font("14px monospace");
+        self.context.set_text_baseline("top");
+
+        if let Some(color) = color {
+            self.context
+                .set_fill_style(&JsValue::from_str(&self.get_color_value(color)));
+        } else {
+            self.context.set_fill_style(&JsValue::from_str("#ffffff"));
+        }
+
+        self.context.fill_text(text, 10.0, y).unwrap();
+        self.context.restore();
+    }
+
+    fn draw_boot_line(&self, text: &str, y: f64, color: Option<&str>) {
+        self.context.save();
+
+        self.context.set_font("14px monospace");
+        self.context.set_text_baseline("top");
+
+        if let Some(color) = color {
+            self.context
+                .set_fill_style(&JsValue::from_str(&self.get_color_value(color)));
+        } else {
+            self.context.set_fill_style(&JsValue::from_str("#ffffff"));
+        }
+
+        if let Some(ok_pos) = text.rfind(" [OK]") {
+            let main_text = &text[..ok_pos];
+            let ok_text = " [OK]";
+
+            self.context.fill_text(main_text, 10.0, y).unwrap();
+
+            let char_width = 8.4;
+            let main_width = main_text.len() as f64 * char_width;
+
+            self.context.set_fill_style(&JsValue::from_str("#00ff00"));
+            self.context
+                .fill_text(ok_text, 10.0 + main_width, y)
+                .unwrap();
+        } else {
+            self.context.fill_text(text, 10.0, y).unwrap();
+        }
+
+        self.context.restore();
+    }
+
+    fn draw_typing_text(&self, text: &str, y: f64, color: Option<&str>, has_cursor: bool) {
+        self.context.save();
+
+        self.context.set_font("14px monospace");
+        self.context.set_text_baseline("top");
+
+        if let Some(color) = color {
+            self.context
+                .set_fill_style(&JsValue::from_str(&self.get_color_value(color)));
+        } else {
+            self.context.set_fill_style(&JsValue::from_str("#ffffff"));
+        }
+
+        if has_cursor {
+            let text_without_cursor = &text[..text.len() - 1];
+            let cursor = "█";
+
+            self.context
+                .fill_text(text_without_cursor, 10.0, y)
+                .unwrap();
+
+            let char_width = 8.4;
+            let text_width = text_without_cursor.len() as f64 * char_width;
+
+            self.context.set_fill_style(&JsValue::from_str("#00ff00"));
+            self.context
+                .fill_text(cursor, 10.0 + text_width, y)
+                .unwrap();
+        } else {
+            self.context.fill_text(text, 10.0, y).unwrap();
+        }
+
+        self.context.restore();
+    }
+
+    fn clear_line_at_y(&self, y: f64) {
+        self.context.save();
+        self.context.set_fill_style(&JsValue::from_str("#000000"));
+        // Fixed: Use self.width instead of canvas.width()
+        self.context
+            .fill_rect(0.0, y, self.width as f64, self.line_height);
+        self.context.restore();
+    }
+
+    fn get_color_value(&self, color: &str) -> String {
+        match color {
+            "red" => "#ff0000".to_string(),
+            "green" => "#00ff00".to_string(),
+            "blue" => "#0000ff".to_string(),
+            "yellow" => "#ffff00".to_string(),
+            "cyan" => "#00ffff".to_string(),
+            "magenta" => "#ff00ff".to_string(),
+            "white" => "#ffffff".to_string(),
+            "gray" | "grey" => "#808080".to_string(),
+            "boot-line" => "#ffffff".to_string(),
+            "typing-line" => "#ffffff".to_string(),
+            _ => {
+                if color.starts_with('#') || color.starts_with("rgb") {
+                    color.to_string()
+                } else {
+                    "#ffffff".to_string()
+                }
+            }
+        }
+    }
+
+    fn advance_y(&self) {
+        let new_y = self.y.get() + self.line_height;
+        self.y.set(new_y);
+    }
+
+    fn append_line(&self, text: &str, color: Option<&str>) {
+        let current_y = self.y.get();
+        self.draw_text(text, current_y, color);
+        self.advance_y();
+        trim_output(self.height);
+    }
+
+    pub fn clear_output(&self) {
+        self.context.save();
+        self.context.set_fill_style(&JsValue::from_str("#000000"));
+        // Fixed: Use self.width and self.height instead of canvas methods
+        self.context
+            .fill_rect(0.0, 0.0, self.width as f64, self.height as f64);
+        self.context.restore();
+
+        self.y.set(20.0);
+    }
+
+    // Add a test method to verify rendering
+    pub fn test_render(&self) {
+        self.context.save();
+
+        // Clear canvas
+        self.context.set_fill_style(&JsValue::from_str("#000000"));
+        self.context
+            .fill_rect(0.0, 0.0, self.width as f64, self.height as f64);
+
+        // Draw test information
+        self.context.set_font("14px monospace");
+        self.context.set_fill_style(&JsValue::from_str("#00ff00"));
+        self.context
+            .fill_text("Terminal Rendering Test", 10.0, 20.0)
+            .unwrap();
+
+        let dimensions = format!("Canvas: {}x{}", self.width, self.height);
+        self.context.set_fill_style(&JsValue::from_str("#ffff00"));
+        self.context.fill_text(&dimensions, 10.0, 50.0).unwrap();
+
+        let prompt = self.get_current_prompt();
+        self.context.set_fill_style(&JsValue::from_str("#8be9fd"));
+        self.context.fill_text(&prompt, 10.0, 80.0).unwrap();
+
+        // Draw border
+        self.context.set_stroke_style(&JsValue::from_str("#ff0000"));
+        self.context.set_line_width(2.0);
+        self.context
+            .stroke_rect(1.0, 1.0, (self.width - 2) as f64, (self.height - 2) as f64);
+
+        self.context.restore();
+    }
+}
+</file>
+
 <file path="Cargo.toml">
 [package]
 name = "portfolio"
@@ -2770,6 +2914,9 @@ features = [
   "EventTarget",
   "Event",
   "CssStyleDeclaration",
+  "HtmlCanvasElement",
+  "CanvasRenderingContext2d",
+  "TextMetrics"
 ]
 
 [profile.release]
@@ -2796,11 +2943,7 @@ opt-level = "s"
 
     <div id="scene-container"></div>
 
-    <div id="terminal">
-      <div id="terminal-body">
-        <div id="terminal-output"></div>
-      </div>
-    </div>
+    <canvas tabindex="0" id="terminal"></canvas>
 
     <script type="importmap">
       {
@@ -2843,8 +2986,8 @@ pub fn main() {
 
     let term = Terminal::new(&document);
     spawn_local(async move {
-        term.start_intro().await;
-        term.start_shell().await;
+        term.init_boot().await;
+        term.init_shell();
     });
 }
 
@@ -2931,241 +3074,85 @@ body {
   width: 0%;
 }
 
-/* Terminal Styles */
+/* Terminal Canvas Styles */
 #terminal {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 1024px;
-  height: 768px;
-  z-index: 1;
-  visibility: hidden;
-  background: #0a0a0a;
-  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-  border-radius: 4px;
-  border: 2px solid #333;
-  font-size: 16px;
-  line-height: 1.4;
-  padding: 20px;
-}
-
-#terminal.texture-mode {
+  width: 800px;
+  height: 600px;
+  z-index: 20;
   visibility: visible;
-  opacity: 1;
-  z-index: 1;
-  /* Position off-screen for html2canvas but keep it accessible */
-  position: fixed;
-  top: -10000px;
-  left: -10000px;
-  transform: none;
-}
+  background: #000000;
 
-/* Terminal display copy for html2canvas */
-#terminal-display {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 1024px;
-  height: 768px;
-  z-index: 1;
-  background: #0a0a0a;
-  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
-  display: flex;
-  flex-direction: column;
+  /* Debug red outline */
+  border: 3px solid #ff0000;
+  box-shadow:
+    0 0 10px rgba(255, 0, 0, 0.5),
+    0 0 20px rgba(139, 233, 253, 0.3);
+
+  /* Canvas specific styles */
+  display: block;
   border-radius: 4px;
-  border: 2px solid #333;
-  font-size: 16px;
-  line-height: 1.4;
-  padding: 20px;
-  visibility: visible;
-  opacity: 1;
-}
 
-/* Remove terminal header completely */
-#terminal-header {
-  display: none;
-}
-
-#terminal-body {
-  flex: 1;
-  overflow-y: auto;
-  background: transparent;
-  scroll-behavior: smooth;
-  max-height: 100%;
-}
-
-/* Enable scrollbar interactions */
-#terminal-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-#terminal-body::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border-radius: 4px;
-}
-
-#terminal-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #333 0%, #555 100%);
-  border-radius: 4px;
-  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
-  transition: all 0.3s ease;
-}
-
-#terminal-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #444 0%, #666 100%);
-  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
-}
-
-#terminal-output {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  color: #e6e6e6;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 16px;
-  line-height: 1.4;
-}
-
-/* Prompt Styling */
-.prompt-line {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  margin: 2px 0;
-}
-
-.prompt {
-  color: #8be9fd;
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
-  font-weight: bold;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  font-family: "JetBrains Mono", monospace;
-}
-
-/* Input container and textarea interactions */
-.input-container {
-  flex: 1;
-  pointer-events: auto;
-}
-
-.terminal-input-field {
-  background: transparent;
-  border: none;
-  color: #e6e6e6;
-  caret-color: #ffffff;
+  /* Make it focusable */
   outline: none;
-  resize: none;
-  width: 100%;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 16px;
-  line-height: 1.4;
-  pointer-events: auto;
+
+  /* Ensure crisp pixel rendering */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
-.terminal-input-field:focus {
-  caret-color: #8be9fd;
-  animation: caretBlink 1s infinite;
+/* When terminal is focused */
+#terminal:focus {
+  border-color: #ff0000;
+  box-shadow:
+    0 0 15px rgba(255, 0, 0, 0.8),
+    0 0 30px rgba(139, 233, 253, 0.5);
 }
 
-/* Visual feedback when terminal is focused */
-#terminal:has(.terminal-input-field:focus) {
-  box-shadow: 0 0 30px rgba(139, 233, 253, 0.6);
-  border-color: #8be9fd;
+/* Terminal in texture mode (when being used as 3D texture) */
+#terminal.texture-mode {
+  visibility: hidden;
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  z-index: -1;
 }
 
-/* Animations */
-@keyframes fadeInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* Debug info overlay */
+.debug-info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #00ff00;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 12px;
+  border: 1px solid #00ff00;
+  z-index: 1000;
+  border-radius: 4px;
 }
 
-@keyframes caretBlink {
-  0%,
-  50% {
-    caret-color: #8be9fd;
-  }
-  51%,
-  100% {
-    caret-color: transparent;
-  }
-}
-
-@keyframes glow {
-  0%,
-  100% {
-    text-shadow: 0 0 5px currentColor;
-  }
-  50% {
-    text-shadow:
-      0 0 20px currentColor,
-      0 0 30px currentColor;
-  }
-}
-
-/* Command styling */
-.command {
-  color: #8be9fd;
-  font-family: "JetBrains Mono", monospace;
-}
-.error {
-  color: #ff5555;
-  font-family: "JetBrains Mono", monospace;
-}
-.success {
-  color: #50fa7b;
-  font-family: "JetBrains Mono", monospace;
-}
-.warning {
-  color: #ffb86c;
-  font-family: "JetBrains Mono", monospace;
-}
-.info {
-  color: #bd93f9;
-  font-family: "JetBrains Mono", monospace;
-}
-.completion {
-  color: #f1fa8c;
-  font-family: "JetBrains Mono", monospace;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  body {
-    font-size: 12px;
-  }
-  #terminal,
-  #terminal-display {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+/* Media queries for responsive design */
+@media (max-width: 1024px) {
+  #terminal {
     width: 90vw;
     height: 70vh;
-  }
-  #terminal-body {
-  }
-  .prompt-line {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .input-container {
-    pointer-events: auto;
+    max-width: 800px;
+    max-height: 600px;
   }
 }
 
-/* Ensure proper layering */
-#scene-container canvas {
-  display: block;
+@media (max-width: 768px) {
+  #terminal {
+    width: 95vw;
+    height: 75vh;
+    font-size: 14px;
+  }
 }
 </file>
 

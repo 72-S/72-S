@@ -32,7 +32,8 @@ features = [
   "Event",
   "CssStyleDeclaration",
   "HtmlCanvasElement",
-  "CanvasRenderingContext2d"
+  "CanvasRenderingContext2d",
+  "TextMetrics"
 ]
 
 [profile.release]

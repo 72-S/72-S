@@ -68,239 +68,83 @@ body {
   width: 0%;
 }
 
-/* Terminal Styles */
+/* Terminal Canvas Styles */
 #terminal {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 1024px;
-  height: 768px;
-  z-index: 1;
-  visibility: hidden;
-  background: #0a0a0a;
-  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-  border-radius: 4px;
-  border: 2px solid #333;
-  font-size: 16px;
-  line-height: 1.4;
-  padding: 20px;
-}
-
-#terminal.texture-mode {
+  /* width: 800px; */
+  /* height: 600px; */
+  z-index: 20;
   visibility: visible;
-  opacity: 1;
-  z-index: 1;
-  /* Position off-screen for html2canvas but keep it accessible */
-  position: fixed;
-  top: -10000px;
-  left: -10000px;
-  transform: none;
-}
+  background: #000000;
 
-/* Terminal display copy for html2canvas */
-#terminal-display {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 1024px;
-  height: 768px;
-  z-index: 1;
-  background: #0a0a0a;
-  box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
-  display: flex;
-  flex-direction: column;
+  /* Debug red outline */
+  border: 3px solid #ff0000;
+  box-shadow:
+    0 0 10px rgba(255, 0, 0, 0.5),
+    0 0 20px rgba(139, 233, 253, 0.3);
+
+  /* Canvas specific styles */
+  display: block;
   border-radius: 4px;
-  border: 2px solid #333;
-  font-size: 16px;
-  line-height: 1.4;
-  padding: 20px;
-  visibility: visible;
-  opacity: 1;
-}
 
-/* Remove terminal header completely */
-#terminal-header {
-  display: none;
-}
-
-#terminal-body {
-  flex: 1;
-  overflow-y: auto;
-  background: transparent;
-  scroll-behavior: smooth;
-  max-height: 100%;
-}
-
-/* Enable scrollbar interactions */
-#terminal-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-#terminal-body::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border-radius: 4px;
-}
-
-#terminal-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #333 0%, #555 100%);
-  border-radius: 4px;
-  box-shadow: 0 0 5px rgba(139, 233, 253, 0.1);
-  transition: all 0.3s ease;
-}
-
-#terminal-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #444 0%, #666 100%);
-  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
-}
-
-#terminal-output {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  color: #e6e6e6;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 16px;
-  line-height: 1.4;
-}
-
-/* Prompt Styling */
-.prompt-line {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  margin: 2px 0;
-}
-
-.prompt {
-  color: #8be9fd;
-  text-shadow: 0 0 10px rgba(139, 233, 253, 0.5);
-  font-weight: bold;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  font-family: "JetBrains Mono", monospace;
-}
-
-/* Input container and textarea interactions */
-.input-container {
-  flex: 1;
-  pointer-events: auto;
-}
-
-.terminal-input-field {
-  background: transparent;
-  border: none;
-  color: #e6e6e6;
-  caret-color: #ffffff;
+  /* Make it focusable */
   outline: none;
-  resize: none;
-  width: 100%;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 16px;
-  line-height: 1.4;
-  pointer-events: auto;
+
+  /* Ensure crisp pixel rendering */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
-.terminal-input-field:focus {
-  caret-color: #8be9fd;
-  animation: caretBlink 1s infinite;
+/* When terminal is focused */
+#terminal:focus {
+  border-color: #ff0000;
+  box-shadow:
+    0 0 15px rgba(255, 0, 0, 0.8),
+    0 0 30px rgba(139, 233, 253, 0.5);
 }
 
-/* Visual feedback when terminal is focused */
-#terminal:has(.terminal-input-field:focus) {
-  box-shadow: 0 0 30px rgba(139, 233, 253, 0.6);
-  border-color: #8be9fd;
+/* Terminal in texture mode (when being used as 3D texture) */
+#terminal.texture-mode {
+  visibility: hidden;
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  z-index: -1;
 }
 
-/* Animations */
-@keyframes fadeInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* Debug info overlay */
+.debug-info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #00ff00;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 12px;
+  border: 1px solid #00ff00;
+  z-index: 1000;
+  border-radius: 4px;
 }
 
-@keyframes caretBlink {
-  0%,
-  50% {
-    caret-color: #8be9fd;
-  }
-  51%,
-  100% {
-    caret-color: transparent;
-  }
-}
-
-@keyframes glow {
-  0%,
-  100% {
-    text-shadow: 0 0 5px currentColor;
-  }
-  50% {
-    text-shadow:
-      0 0 20px currentColor,
-      0 0 30px currentColor;
-  }
-}
-
-/* Command styling */
-.command {
-  color: #8be9fd;
-  font-family: "JetBrains Mono", monospace;
-}
-.error {
-  color: #ff5555;
-  font-family: "JetBrains Mono", monospace;
-}
-.success {
-  color: #50fa7b;
-  font-family: "JetBrains Mono", monospace;
-}
-.warning {
-  color: #ffb86c;
-  font-family: "JetBrains Mono", monospace;
-}
-.info {
-  color: #bd93f9;
-  font-family: "JetBrains Mono", monospace;
-}
-.completion {
-  color: #f1fa8c;
-  font-family: "JetBrains Mono", monospace;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  body {
-    font-size: 12px;
-  }
-  #terminal,
-  #terminal-display {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+/* Media queries for responsive design */
+@media (max-width: 1024px) {
+  #terminal {
     width: 90vw;
     height: 70vh;
-  }
-  #terminal-body {
-  }
-  .prompt-line {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .input-container {
-    pointer-events: auto;
+    max-width: 800px;
+    max-height: 600px;
   }
 }
 
-/* Ensure proper layering */
-#scene-container canvas {
-  display: block;
+@media (max-width: 768px) {
+  #terminal {
+    width: 95vw;
+    height: 75vh;
+    font-size: 14px;
+  }
 }
