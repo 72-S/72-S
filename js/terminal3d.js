@@ -120,11 +120,7 @@ export class Terminal3D {
       this.setupEventListeners();
       await this.effectsManager.trySetupPostProcessing();
 
-      this.animationManager = new AnimationManager(
-        this.camera,
-        this.controls,
-        (newState) => {},
-      );
+      this.animationManager = new AnimationManager(this.camera, this.controls);
 
       if (this.debugEnabled) {
         this.debugManager.createDebugGUI();
