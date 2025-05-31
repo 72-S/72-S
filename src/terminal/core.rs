@@ -21,8 +21,8 @@ impl Terminal {
             .dyn_into::<HtmlCanvasElement>()
             .expect("element is not a canvas");
 
-        let canvas_width = 800;
-        let canvas_height = 600;
+        let canvas_width = 700;
+        let canvas_height = 550;
 
         canvas.set_width(canvas_width);
         canvas.set_height(canvas_height);
