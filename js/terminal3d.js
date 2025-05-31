@@ -5,6 +5,7 @@ import { DebugManager } from "./debug.js";
 import { EffectsManager } from "./effects.js";
 import { CRTShader } from "./crt-shader.js";
 import { AnimationManager } from "./animation.js";
+import { soundManager } from "./sound.js";
 
 export class Terminal3D {
   constructor(options = {}) {
@@ -194,6 +195,7 @@ export class Terminal3D {
       this.hideLoading();
       this.showTerminal();
 
+      soundManager.play("boot");
       window.dispatchEvent(new CustomEvent("terminalReady"));
       this.animationManager.startupAnimation();
       this.animate();

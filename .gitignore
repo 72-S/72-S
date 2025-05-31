@@ -6,4 +6,4 @@ pkg/
 dist/
 target/
 wasm-pack.log
-# repomix-output.xml
+repomix-output.xml
