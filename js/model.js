@@ -1,110 +1,23 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-export class Terminal3D {
-  constructor() {
-    this.scene = null;
-    this.camera = null;
-    this.renderer = null;
-    this.controls = null;
+export class ModelManager {
+  constructor(scene, updateProgress) {
+    this.scene = scene;
+    this.updateProgress = updateProgress;
     this.pcModel = null;
     this.screenMesh = null;
-    this.terminalTexture = null;
-    this.terminalCanvas = null; // Add reference to terminal canvas
-    this.hiddenInput = null; // Add reference to hidden input element
-    this.isTerminalFocused = false;
-    this.animationId = null;
-    this.isHoveringScreen = false; // Track if hovering over screen
-    this.scrollHistory = []; // Limited scroll history
-    this.maxScrollHistory = 50; // Limit scroll history size
-    this.currentScrollPosition = 0;
-    this.init();
-  }
-
-  async init() {
-    try {
-      this.updateLoadingProgress(10);
-      await this.setupScene();
-      this.updateLoadingProgress(30);
-      await this.loadPCModel();
-      this.updateLoadingProgress(60);
-      await this.setupTerminalTexture();
-      this.updateLoadingProgress(80);
-      this.setupEventListeners();
-      this.updateLoadingProgress(100);
-      this.hideLoading();
-      this.showTerminal();
-      this.animate();
-    } catch (e) {
-      console.error("3D init failed:", e);
-      this.showError();
-    }
-  }
-
-  updateLoadingProgress(p) {
-    const bar = document.getElementById("loading-progress");
-    if (bar) bar.style.width = p + "%";
-  }
-
-  hideLoading() {
-    setTimeout(() => {
-      const L = document.getElementById("loading");
-      if (L) L.classList.add("hidden");
-    }, 500);
-  }
-
-  showError() {
-    const txt = document.querySelector(".loading-text");
-    if (txt) {
-      txt.textContent = "Failed to load 3D. Showing terminal.";
-      txt.style.color = "#ff5555";
-    }
-    setTimeout(() => {
-      const L = document.getElementById("loading");
-      if (L) L.classList.add("hidden");
-      const term = document.getElementById("terminal");
-      if (term) term.style.visibility = "visible";
-    }, 2000);
-  }
-
-  showTerminal() {
-    const terminal = document.getElementById("terminal");
-    if (terminal) {
-      terminal.style.visibility = "visible";
-    }
-  }
-
-  async setupScene() {
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a0a);
-    this.camera = new THREE.PerspectiveCamera(
-      45,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      100,
-    );
-    this.camera.position.set(0, 1.5, 3);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    document
-      .getElementById("scene-container")
-      .appendChild(this.renderer.domElement);
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.target.set(0, 1, 0);
-
-    this.scene.add(new THREE.HemisphereLight(0x8be9fd, 0x444444, 0.3));
+    this.sceneMeshes = [];
+    this.fadeStartTime = null;
+    this.fadeInDuration = 4000;
   }
 
   async loadPCModel() {
-    console.log("Loading PC model...");
     return new Promise((resolve) => {
       const loader = new GLTFLoader();
       loader.load(
         "./pc.glb",
         (gltf) => {
-          console.log("Model loaded");
           this.pcModel = gltf.scene;
           this.pcModel.scale.setScalar(1);
           this.pcModel.position.set(0, 0, 0);
@@ -112,6 +25,57 @@ export class Terminal3D {
           this.pcModel.traverse((c) => {
             if (c.isMesh) {
               c.castShadow = c.receiveShadow = true;
+              this.sceneMeshes.push(c);
+
+              if (c.material) {
+                if (c.material.map) {
+                  c.material.map.generateMipmaps = false;
+                  c.material.map.minFilter = THREE.LinearFilter;
+                  c.material.map.magFilter = THREE.LinearFilter;
+                }
+
+                [
+                  "normalMap",
+                  "roughnessMap",
+                  "metalnessMap",
+                  "emissiveMap",
+                  "aoMap",
+                ].forEach((mapType) => {
+                  if (c.material[mapType]) {
+                    c.material[mapType].generateMipmaps = false;
+                    c.material[mapType].minFilter = THREE.LinearFilter;
+                    c.material[mapType].magFilter = THREE.LinearFilter;
+                  }
+                });
+
+                if (c.material.isMeshStandardMaterial) {
+                  c.material.envMapIntensity = 0.3;
+
+                  c.material.roughness = Math.max(
+                    0.4,
+                    c.material.roughness * 1.2,
+                  );
+                  c.material.metalness = Math.min(
+                    0.6,
+                    c.material.metalness * 0.8,
+                  );
+
+                  if (c.material.emissive) {
+                    c.material.emissive.multiplyScalar(0.5);
+                  }
+                } else if (c.material.isMeshBasicMaterial) {
+                  const newMaterial = new THREE.MeshStandardMaterial({
+                    color: c.material.color,
+                    map: c.material.map,
+                    transparent: c.material.transparent,
+                    opacity: c.material.opacity,
+                    roughness: 0.7,
+                    metalness: 0.1,
+                  });
+                  c.material = newMaterial;
+                }
+              }
+
               const n = c.name.toLowerCase();
               const m = c.material?.name?.toLowerCase() || "";
               if (
@@ -122,19 +86,20 @@ export class Terminal3D {
                 c.name === "Plane008_Material002_0"
               ) {
                 this.screenMesh = c;
-                console.log("Found screen:", c.name);
               }
             }
           });
+
           if (!this.screenMesh) {
             this.findScreenMesh();
           }
           this.scene.add(this.pcModel);
+          this.startSceneFadeIn();
           resolve();
         },
         (prog) => {
           const pct = 30 + (prog.loaded / prog.total) * 30;
-          this.updateLoadingProgress(pct);
+          this.updateProgress(pct);
         },
         (err) => {
           console.warn("Model load failed:", err);
@@ -165,333 +130,53 @@ export class Terminal3D {
     }
   }
 
-  async setupTerminalTexture() {
-    // Get the terminal canvas directly (created by your Rust code)
-    this.terminalCanvas = document.getElementById("terminal");
-    // Get the hidden input element (used by Rust for input handling)
-    this.hiddenInput = document.getElementById("hidden-input");
+  startSceneFadeIn() {
+    this.fadeStartTime = Date.now();
 
-    if (!this.terminalCanvas) {
-      console.error("Terminal canvas not found!");
-      return;
-    }
-
-    if (!this.hiddenInput) {
-      console.error("Hidden input element not found!");
-      return;
-    }
-
-    // Wait a frame to ensure canvas is ready
-    await new Promise((r) => requestAnimationFrame(r));
-
-    // Create Three.js texture from the existing canvas
-    this.terminalTexture = new THREE.CanvasTexture(this.terminalCanvas);
-    this.terminalTexture.minFilter = THREE.LinearFilter;
-    this.terminalTexture.magFilter = THREE.LinearFilter;
-    this.terminalTexture.flipY = true; // Canvas is already correct orientation
-
-    // Apply texture to screen mesh
-    if (this.screenMesh) {
-      this.screenMesh.material = new THREE.MeshBasicMaterial({
-        map: this.terminalTexture,
-        emissive: new THREE.Color(0x001a1a),
-        emissiveIntensity: 0.1,
-      });
-    }
-
-    // Adjust texture mapping if needed
-    this.terminalTexture.offset.y = 0.0;
-    this.terminalTexture.repeat.y = 1.0;
-
-    // Set up automatic texture updates
-    this.updateTerminalTexture = () => {
-      try {
-        // The canvas is automatically updated by your Rust terminal renderer
-        // We just need to tell Three.js to update the texture
-        if (this.terminalTexture) {
-          this.terminalTexture.needsUpdate = true;
-        }
-      } catch (e) {
-        console.warn("Texture update failed:", e);
+    this.sceneMeshes.forEach((mesh) => {
+      if (mesh !== this.screenMesh && mesh.material) {
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0;
       }
-    };
-
-    // Update texture regularly to sync with terminal changes
-    setInterval(() => {
-      this.updateTerminalTexture();
-    }, 16); // ~60fps updates
+    });
   }
 
-  setupEventListeners() {
-    window.addEventListener("resize", () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+  updateSceneFadeIn() {
+    if (!this.fadeStartTime) return;
 
-    // Set up raycasting for screen interactions
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
+    const elapsed = Date.now() - this.fadeStartTime;
+    const progress = Math.min(elapsed / this.fadeInDuration, 1);
+    const opacity = this.easeInOutCubic(progress);
 
-    // Mouse move handler for hover effects
-    this.renderer.domElement.addEventListener("mousemove", (event) => {
-      this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-
-      const intersectables = [];
-      if (this.pcModel) {
-        this.pcModel.traverse((child) => {
-          if (child.isMesh) {
-            intersectables.push(child);
-          }
-        });
-      }
-      if (this.screenMesh && !intersectables.includes(this.screenMesh)) {
-        intersectables.push(this.screenMesh);
-      }
-
-      const intersects = this.raycaster.intersectObjects(intersectables);
-
-      if (intersects.length > 0) {
-        const hoveredObject = intersects[0].object;
-
-        const isScreen =
-          hoveredObject.name === "Plane008_Material002_0" ||
-          hoveredObject === this.screenMesh ||
-          hoveredObject.material?.map === this.terminalTexture ||
-          (hoveredObject.name &&
-            hoveredObject.name.toLowerCase().includes("screen"));
-
-        if (isScreen) {
-          // Hovering over screen - change cursor to pointer
-          this.renderer.domElement.style.cursor = "pointer";
-          this.isHoveringScreen = true;
-        } else {
-          // Hovering over monitor face but not screen - change cursor to pointer
-          this.renderer.domElement.style.cursor = "pointer";
-          this.isHoveringScreen = false;
-        }
-      } else {
-        // Not hovering over any mesh - default cursor
-        this.renderer.domElement.style.cursor = "default";
-        this.isHoveringScreen = false;
-      }
-    });
-
-    // Mouse leave handler to reset cursor
-    this.renderer.domElement.addEventListener("mouseleave", () => {
-      this.renderer.domElement.style.cursor = "default";
-      this.isHoveringScreen = false;
-    });
-
-    // Wheel event for scrolling when hovering over screen
-    this.renderer.domElement.addEventListener("wheel", (event) => {
-      if (this.isHoveringScreen) {
-        event.preventDefault();
-
-        // Get current terminal content snapshot
-        const currentSnapshot = this.captureTerminalSnapshot();
-
-        // Add to scroll history if different from last entry
-        if (
-          this.scrollHistory.length === 0 ||
-          this.scrollHistory[this.scrollHistory.length - 1] !== currentSnapshot
-        ) {
-          this.scrollHistory.push(currentSnapshot);
-
-          // Limit history size
-          if (this.scrollHistory.length > this.maxScrollHistory) {
-            this.scrollHistory.shift();
-          }
-        }
-
-        // Scroll up on wheel up
-        if (event.deltaY < 0) {
-          this.scrollUp();
-        } else {
-          // Scroll down on wheel down (back to current)
-          this.scrollDown();
-        }
-      }
-    });
-
-    // Click handler
-    this.renderer.domElement.addEventListener("click", (event) => {
-      this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-
-      const intersectables = [];
-      if (this.pcModel) {
-        this.pcModel.traverse((child) => {
-          if (child.isMesh) {
-            intersectables.push(child);
-          }
-        });
-      }
-      if (this.screenMesh && !intersectables.includes(this.screenMesh)) {
-        intersectables.push(this.screenMesh);
-      }
-
-      const intersects = this.raycaster.intersectObjects(intersectables);
-
-      if (intersects.length > 0) {
-        const clickedObject = intersects[0].object;
-        console.log(
-          "Clicked object:",
-          clickedObject.name || "unnamed",
-          clickedObject,
-        );
-
-        const isScreen =
-          clickedObject.name === "Plane008_Material002_0" ||
-          clickedObject === this.screenMesh ||
-          clickedObject.material?.map === this.terminalTexture ||
-          (clickedObject.name &&
-            clickedObject.name.toLowerCase().includes("screen"));
-
-        if (isScreen) {
-          console.log("Screen clicked - focusing terminal input");
-          this.isTerminalFocused = true;
-
-          // Focus the hidden input element (this is what handles the actual input)
-          if (this.hiddenInput) {
-            this.hiddenInput.focus();
-          }
-
-          // Trigger any terminal focus events if your Rust code needs them
-          const focusEvent = new CustomEvent("terminalFocus");
-          window.dispatchEvent(focusEvent);
-        } else {
-          console.log("Clicked on non-screen object - removing focus");
-          this.isTerminalFocused = false;
-
-          // Blur the hidden input element
-          if (this.hiddenInput) {
-            this.hiddenInput.blur();
-          }
-
-          const blurEvent = new CustomEvent("terminalBlur");
-          window.dispatchEvent(blurEvent);
-        }
-      } else {
-        console.log("Clicked on empty space - removing focus");
-        this.isTerminalFocused = false;
-
-        // Blur the hidden input element
-        if (this.hiddenInput) {
-          this.hiddenInput.blur();
-        }
-
-        const blurEvent = new CustomEvent("terminalBlur");
-        window.dispatchEvent(blurEvent);
-      }
-    });
-
-    // Handle clicks outside the 3D scene
-    document.addEventListener("click", (e) => {
+    this.sceneMeshes.forEach((mesh) => {
       if (
-        !e.target.closest("#scene-container") &&
-        !e.target.closest("#terminal") &&
-        !e.target.closest("#hidden-input")
+        mesh !== this.screenMesh &&
+        mesh.material &&
+        mesh.material.transparent
       ) {
-        console.log("Clicked outside - removing focus");
-        this.isTerminalFocused = false;
+        mesh.material.opacity = opacity;
 
-        // Blur the hidden input element
-        if (this.hiddenInput) {
-          this.hiddenInput.blur();
+        if (progress >= 1) {
+          mesh.material.transparent = false;
+          mesh.material.opacity = 1;
         }
-
-        const blurEvent = new CustomEvent("terminalBlur");
-        window.dispatchEvent(blurEvent);
       }
     });
 
-    // Listen for custom focus/blur events from Rust code if needed
-    window.addEventListener("terminalFocus", () => {
-      console.log("Terminal focus event received");
-      this.isTerminalFocused = true;
-      if (this.hiddenInput) {
-        this.hiddenInput.focus();
-      }
-    });
-
-    window.addEventListener("terminalBlur", () => {
-      console.log("Terminal blur event received");
-      this.isTerminalFocused = false;
-      if (this.hiddenInput) {
-        this.hiddenInput.blur();
-      }
-    });
-  }
-
-  // Capture current terminal content as a snapshot
-  captureTerminalSnapshot() {
-    if (!this.terminalCanvas) return null;
-
-    try {
-      // Create a simple text representation of current terminal state
-      // This is a simplified approach - you might want to enhance this
-      return {
-        timestamp: Date.now(),
-        // You could extend this to capture actual terminal buffer state
-        // from your Rust terminal if you expose that functionality
-      };
-    } catch (e) {
-      console.warn("Failed to capture terminal snapshot:", e);
-      return null;
+    if (progress >= 1) {
+      this.fadeStartTime = null;
     }
   }
 
-  // Scroll up through limited history
-  scrollUp() {
-    if (this.scrollHistory.length === 0) return;
-
-    // Move backward in history
-    if (this.currentScrollPosition < this.scrollHistory.length - 1) {
-      this.currentScrollPosition++;
-      console.log(`Scrolled up to position ${this.currentScrollPosition}`);
-
-      // Here you would trigger the scroll display
-      // For now, we'll dispatch a custom event that your Rust code can listen to
-      const scrollEvent = new CustomEvent("terminalScrollUp", {
-        detail: { position: this.currentScrollPosition },
-      });
-      window.dispatchEvent(scrollEvent);
-    }
+  easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  // Scroll down (back toward current)
-  scrollDown() {
-    if (this.currentScrollPosition > 0) {
-      this.currentScrollPosition--;
-      console.log(`Scrolled down to position ${this.currentScrollPosition}`);
-
-      const scrollEvent = new CustomEvent("terminalScrollDown", {
-        detail: { position: this.currentScrollPosition },
-      });
-      window.dispatchEvent(scrollEvent);
-    } else {
-      // Back to current/live view
-      this.currentScrollPosition = 0;
-      const scrollEvent = new CustomEvent("terminalScrollToBottom");
-      window.dispatchEvent(scrollEvent);
-    }
-  }
-
-  animate() {
-    this.animationId = requestAnimationFrame(() => this.animate());
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-  }
-
-  dispose() {
-    if (this.animationId) cancelAnimationFrame(this.animationId);
-    if (this.renderer) this.renderer.dispose();
-    if (this.terminalTexture) this.terminalTexture.dispose();
+  isScreenObject(object) {
+    return (
+      object.name === "Plane008_Material002_0" ||
+      object === this.screenMesh ||
+      (object.name && object.name.toLowerCase().includes("screen"))
+    );
   }
 }
