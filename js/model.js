@@ -30,8 +30,8 @@ export class Terminal3D {
         target: new THREE.Vector3(0, 1.5, 0),
       },
       focused: {
-        position: new THREE.Vector3(0.5, 3.5, 4.5),
-        target: new THREE.Vector3(0, 2.5, 0),
+        position: new THREE.Vector3(0, 3.0, 5.5),
+        target: new THREE.Vector3(0, 2.3, 0),
       },
       overview: {
         position: new THREE.Vector3(6, 6, 12),
@@ -46,13 +46,15 @@ export class Terminal3D {
     this.isAnimatingCamera = false;
     this.idleRotationActive = false;
     this.lastInteractionTime = Date.now();
-    this.inactivityDelay = 3000; // 3 seconds
-    this.idleRotationSpeed = 0.0005;
-    this.idleRadius = 8;
-    this.idleHeight = 4.5;
+    this.inactivityDelay = 10000;
+    this.idleRotationSpeed = 0.0002;
+    this.idleRadius = 7;
+    this.idleHeight = 4.2;
     this.idleAngle = 0;
-    this.fadeInDuration = 2000; // 2 seconds
+    this.fadeInDuration = 4000;
     this.fadeStartTime = null;
+    this.maxIdleRotation = Math.PI * 1.2;
+    this.idleRotationCount = 0;
     this.sceneMeshes = [];
     this.cameraBounds = {
       position: { x: [-15, 15], y: [2, 12], z: [3, 20] },
@@ -61,7 +63,6 @@ export class Terminal3D {
     this.lastValidCameraPosition = new THREE.Vector3();
     this.lastValidCameraTarget = new THREE.Vector3();
 
-    // Default camera position
     this.defaultCameraPosition = new THREE.Vector3(4, 5, 10);
     this.defaultCameraTarget = new THREE.Vector3(0, 1.5, 0);
 
@@ -178,6 +179,13 @@ export class Terminal3D {
     // Update idle rotation if active
     if (this.idleRotationActive) {
       this.idleAngle += this.idleRotationSpeed;
+      this.idleRotationCount += this.idleRotationSpeed;
+
+      // Check if we've rotated enough to reset
+      if (this.idleRotationCount >= this.maxIdleRotation) {
+        this.resetIdleRotation();
+        return;
+      }
 
       const x = Math.cos(this.idleAngle) * this.idleRadius;
       const z = Math.sin(this.idleAngle) * this.idleRadius;
@@ -185,6 +193,24 @@ export class Terminal3D {
       this.camera.position.set(x, this.idleHeight, z);
       this.controls.target.set(0, 1.5, 0);
     }
+  }
+  resetIdleRotation() {
+    this.idleRotationActive = false;
+    this.idleRotationCount = 0;
+
+    // Smoothly return to a new starting position
+    this.animateToState("default", 1500, () => {
+      // After returning to default, wait a bit then start idle again
+      setTimeout(() => {
+        if (
+          this.currentCameraState === "default" &&
+          !this.isTerminalFocused &&
+          this.startupPhase === "complete"
+        ) {
+          this.startIdleRotation();
+        }
+      }, 2000); // Wait 2 seconds before starting again
+    });
   }
 
   // FIXED: Clean idle rotation start
@@ -195,6 +221,7 @@ export class Terminal3D {
 
     this.idleRotationActive = false; // Ensure it's off during transition
     this.isAnimatingCamera = true;
+    this.idleRotationCount = 0; // Reset rotation counter
 
     // Calculate the starting position for smooth transition
     const startAngle = Math.atan2(
