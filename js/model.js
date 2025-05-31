@@ -46,7 +46,9 @@ export class Terminal3D {
     this.isAnimatingCamera = false;
     this.idleRotationActive = false;
     this.lastInteractionTime = Date.now();
-    this.inactivityDelay = 10000;
+    this.lastFocusedInteractionTime = Date.now(); // Track focused state interactions separately
+    this.inactivityDelay = 10000; // Regular idle delay (10 seconds)
+    this.focusedInactivityDelay = 180000; // 3 minutes for focused state
     this.idleRotationSpeed = 0.0002;
     this.idleRadius = 7;
     this.idleHeight = 4.2;
@@ -103,6 +105,7 @@ export class Terminal3D {
         this.startupPhase = "complete";
         // Phase 3: Enable idle rotation
         this.lastInteractionTime = Date.now();
+        this.lastFocusedInteractionTime = Date.now();
       });
     }, 1000);
   }
@@ -154,26 +157,39 @@ export class Terminal3D {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  // 3. FIXED: Infinite Idle Rotation System
+  // 3. Enhanced Idle Rotation System with Focused State Support
   updateIdleRotation() {
     // Don't start idle if startup isn't complete
     if (this.startupPhase !== "complete") return;
-
-    // Don't start idle if terminal is focused or in focused camera state
-    if (this.isTerminalFocused || this.currentCameraState === "focused") return;
 
     // Don't start idle if currently animating
     if (this.isAnimatingCamera) return;
 
     const currentTime = Date.now();
     const timeSinceLastInteraction = currentTime - this.lastInteractionTime;
+    const timeSinceLastFocusedInteraction =
+      currentTime - this.lastFocusedInteractionTime;
 
-    // Start idle rotation if conditions are met
-    if (
-      timeSinceLastInteraction > this.inactivityDelay &&
-      !this.idleRotationActive
-    ) {
-      this.startIdleRotation();
+    // Different logic for focused vs non-focused states
+    if (this.currentCameraState === "focused" && this.isTerminalFocused) {
+      // In focused state, need 3 minutes of inactivity
+      if (
+        timeSinceLastFocusedInteraction > this.focusedInactivityDelay &&
+        !this.idleRotationActive
+      ) {
+        console.log(
+          "Starting idle rotation from focused state after 3 minutes",
+        );
+        this.startIdleRotation();
+      }
+    } else if (this.currentCameraState !== "focused") {
+      // Regular idle logic for non-focused states
+      if (
+        timeSinceLastInteraction > this.inactivityDelay &&
+        !this.idleRotationActive
+      ) {
+        this.startIdleRotation();
+      }
     }
 
     // Update idle rotation if active
@@ -194,6 +210,7 @@ export class Terminal3D {
       this.controls.target.set(0, 1.5, 0);
     }
   }
+
   resetIdleRotation() {
     this.idleRotationActive = false;
     this.idleRotationCount = 0;
@@ -213,12 +230,9 @@ export class Terminal3D {
     });
   }
 
-  // FIXED: Clean idle rotation start
+  // Enhanced idle rotation start - now allows starting from focused state
   startIdleRotation() {
-    if (this.isTerminalFocused || this.currentCameraState === "focused") {
-      return; // Don't start idle if terminal is focused
-    }
-
+    // Allow idle rotation to start from focused state after long inactivity
     this.idleRotationActive = false; // Ensure it's off during transition
     this.isAnimatingCamera = true;
     this.idleRotationCount = 0; // Reset rotation counter
@@ -263,6 +277,8 @@ export class Terminal3D {
         this.isAnimatingCamera = false;
         this.idleRotationActive = true;
         this.currentCameraState = "idle";
+        // Clear focused state when going to idle
+        this.isTerminalFocused = false;
       }
     };
 
@@ -272,6 +288,7 @@ export class Terminal3D {
   stopIdleRotation() {
     this.idleRotationActive = false;
     this.lastInteractionTime = Date.now();
+    this.lastFocusedInteractionTime = Date.now();
 
     // If we were in idle state, return to default
     if (this.currentCameraState === "idle") {
@@ -586,6 +603,236 @@ export class Terminal3D {
     }
   }
 
+  // 7. Enhanced CRT Shader with Dynamic Parameters
+  createCRTMaterial() {
+    const vertexShader = `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    const fragmentShader = `
+      uniform sampler2D map;
+      uniform float bulge;
+      uniform float scanlineIntensity;
+      uniform float scanlineCount;
+      uniform float vignetteIntensity;
+      uniform float vignetteRadius;
+      uniform float glowIntensity;
+      uniform vec3 glowColor;
+      uniform float brightness;
+      uniform float contrast;
+      uniform float time;
+      varying vec2 vUv;
+
+      vec2 crtDistort(vec2 uv) {
+        // Center the UV coordinates
+        uv = uv * 2.0 - 1.0;
+        
+        // Apply barrel distortion
+        float r2 = dot(uv, uv);
+        float distortion = 1.0 + bulge * r2;
+        uv *= distortion;
+        
+        // Convert back to 0-1 range
+        uv = uv * 0.5 + 0.5;
+        return uv;
+      }
+
+      void main() {
+        vec2 distortedUV = crtDistort(vUv);
+        
+        // Sample the texture with distorted UV
+        vec4 color = texture2D(map, distortedUV);
+        
+        // Apply brightness and contrast
+        color.rgb = color.rgb * brightness;
+        color.rgb = ((color.rgb - 0.5) * contrast) + 0.5;
+        
+        // Add scanlines
+        float scanlinePattern = sin(distortedUV.y * scanlineCount) * scanlineIntensity;
+        color.rgb += scanlinePattern;
+        
+        // Add glow effect
+        color.rgb += glowColor * glowIntensity;
+        
+        // Add vignette effect
+        float vignette = smoothstep(vignetteRadius, 1.0, distance(vUv, vec2(0.5)));
+        color.rgb *= (1.0 - vignette * vignetteIntensity);
+        
+        // Add subtle flicker effect
+        float flicker = 1.0 + sin(time * 60.0) * 0.005;
+        color.rgb *= flicker;
+        
+        gl_FragColor = color;
+      }
+    `;
+
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        map: { value: this.terminalTexture },
+        bulge: { value: 0.15 },
+        scanlineIntensity: { value: 0.04 },
+        scanlineCount: { value: 800.0 },
+        vignetteIntensity: { value: 0.3 },
+        vignetteRadius: { value: 0.3 },
+        glowIntensity: { value: 0.02 },
+        glowColor: { value: new THREE.Vector3(0.0, 0.02, 0.02) },
+        brightness: { value: 1.0 },
+        contrast: { value: 1.1 },
+        time: { value: 0.0 },
+      },
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader,
+      transparent: true,
+    });
+  }
+
+  // 8. Dynamic Shader Parameter Control Methods
+  setBulge(value) {
+    if (
+      this.screenMesh &&
+      this.screenMesh.material &&
+      this.screenMesh.material.uniforms
+    ) {
+      this.screenMesh.material.uniforms.bulge.value = Math.max(
+        0,
+        Math.min(0.5, value),
+      );
+      console.log(
+        `Bulge set to: ${this.screenMesh.material.uniforms.bulge.value}`,
+      );
+    }
+  }
+
+  setScanlines(intensity, count = null) {
+    if (
+      this.screenMesh &&
+      this.screenMesh.material &&
+      this.screenMesh.material.uniforms
+    ) {
+      this.screenMesh.material.uniforms.scanlineIntensity.value = Math.max(
+        0,
+        Math.min(0.2, intensity),
+      );
+      if (count !== null) {
+        this.screenMesh.material.uniforms.scanlineCount.value = Math.max(
+          100,
+          Math.min(2000, count),
+        );
+      }
+      console.log(
+        `Scanlines: intensity=${this.screenMesh.material.uniforms.scanlineIntensity.value}, count=${this.screenMesh.material.uniforms.scanlineCount.value}`,
+      );
+    }
+  }
+
+  setVignette(intensity, radius = null) {
+    if (
+      this.screenMesh &&
+      this.screenMesh.material &&
+      this.screenMesh.material.uniforms
+    ) {
+      this.screenMesh.material.uniforms.vignetteIntensity.value = Math.max(
+        0,
+        Math.min(1, intensity),
+      );
+      if (radius !== null) {
+        this.screenMesh.material.uniforms.vignetteRadius.value = Math.max(
+          0,
+          Math.min(1, radius),
+        );
+      }
+      console.log(
+        `Vignette: intensity=${this.screenMesh.material.uniforms.vignetteIntensity.value}, radius=${this.screenMesh.material.uniforms.vignetteRadius.value}`,
+      );
+    }
+  }
+
+  setGlow(intensity, color = null) {
+    if (
+      this.screenMesh &&
+      this.screenMesh.material &&
+      this.screenMesh.material.uniforms
+    ) {
+      this.screenMesh.material.uniforms.glowIntensity.value = Math.max(
+        0,
+        Math.min(0.1, intensity),
+      );
+      if (color !== null) {
+        this.screenMesh.material.uniforms.glowColor.value.copy(color);
+      }
+      console.log(
+        `Glow intensity set to: ${this.screenMesh.material.uniforms.glowIntensity.value}`,
+      );
+    }
+  }
+
+  setBrightnessContrast(brightness, contrast = null) {
+    if (
+      this.screenMesh &&
+      this.screenMesh.material &&
+      this.screenMesh.material.uniforms
+    ) {
+      this.screenMesh.material.uniforms.brightness.value = Math.max(
+        0.1,
+        Math.min(3, brightness),
+      );
+      if (contrast !== null) {
+        this.screenMesh.material.uniforms.contrast.value = Math.max(
+          0.1,
+          Math.min(3, contrast),
+        );
+      }
+      console.log(
+        `Brightness: ${this.screenMesh.material.uniforms.brightness.value}, Contrast: ${this.screenMesh.material.uniforms.contrast.value}`,
+      );
+    }
+  }
+
+  // Preset configurations
+  setCRTPreset(preset) {
+    switch (preset) {
+      case "modern":
+        this.setBulge(0.05);
+        this.setScanlines(0.01, 1200);
+        this.setVignette(0.1, 0.4);
+        this.setGlow(0.005);
+        this.setBrightnessContrast(1.0, 1.0);
+        break;
+      case "vintage":
+        this.setBulge(0.25);
+        this.setScanlines(0.06, 600);
+        this.setVignette(0.4, 0.2);
+        this.setGlow(0.03);
+        this.setBrightnessContrast(0.9, 1.3);
+        break;
+      case "retro":
+        this.setBulge(0.35);
+        this.setScanlines(0.08, 400);
+        this.setVignette(0.5, 0.15);
+        this.setGlow(0.04);
+        this.setBrightnessContrast(0.8, 1.5);
+        break;
+      case "flat":
+        this.setBulge(0.0);
+        this.setScanlines(0.0, 800);
+        this.setVignette(0.0, 0.3);
+        this.setGlow(0.0);
+        this.setBrightnessContrast(1.0, 1.0);
+        break;
+      default:
+        this.setBulge(0.15);
+        this.setScanlines(0.04, 800);
+        this.setVignette(0.3, 0.3);
+        this.setGlow(0.02);
+        this.setBrightnessContrast(1.0, 1.1);
+    }
+    console.log(`CRT preset '${preset}' applied`);
+  }
+
   async loadPCModel() {
     console.log("Loading PC model...");
     return new Promise((resolve) => {
@@ -701,16 +948,8 @@ export class Terminal3D {
     this.terminalTexture.flipY = true;
 
     if (this.screenMesh) {
-      this.screenMesh.material = new THREE.MeshStandardMaterial({
-        map: this.terminalTexture,
-        emissive: new THREE.Color(0x004444),
-        emissiveIntensity: 0.7,
-        roughness: 0.05,
-        metalness: 0.05,
-        transparent: true,
-        opacity: 1.0,
-        emissiveMap: this.terminalTexture,
-      });
+      // Use CRT shader material instead of standard material
+      this.screenMesh.material = this.createCRTMaterial();
     }
 
     this.terminalTexture.offset.y = 0.0;
@@ -748,6 +987,12 @@ export class Terminal3D {
     this.renderer.domElement.addEventListener("mousemove", (event) => {
       this.stopIdleRotation(); // Stop idle rotation on interaction
 
+      // Track different interaction times
+      this.lastInteractionTime = Date.now();
+      if (this.isTerminalFocused) {
+        this.lastFocusedInteractionTime = Date.now();
+      }
+
       this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -771,30 +1016,22 @@ export class Terminal3D {
         if (isScreen) {
           this.renderer.domElement.style.cursor = "pointer";
           this.isHoveringScreen = true;
-
-          if (this.screenMesh && this.screenMesh.material) {
-            this.screenMesh.material.emissiveIntensity = 1.0;
-          }
         } else {
           this.renderer.domElement.style.cursor = "grab";
           this.isHoveringScreen = false;
-
-          if (this.screenMesh && this.screenMesh.material) {
-            this.screenMesh.material.emissiveIntensity = 0.7;
-          }
         }
       } else {
         this.renderer.domElement.style.cursor = "default";
         this.isHoveringScreen = false;
-
-        if (this.screenMesh && this.screenMesh.material) {
-          this.screenMesh.material.emissiveIntensity = 0.7;
-        }
       }
     });
 
     this.renderer.domElement.addEventListener("click", (event) => {
       this.stopIdleRotation(); // Stop idle rotation on interaction
+
+      // Track interaction
+      this.lastInteractionTime = Date.now();
+      this.lastFocusedInteractionTime = Date.now();
 
       this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -867,11 +1104,18 @@ export class Terminal3D {
       }
     });
 
-    // Add keyboard shortcuts for camera states
+    // Enhanced keyboard shortcuts with CRT parameter controls
     window.addEventListener("keydown", (event) => {
       this.stopIdleRotation(); // Stop idle rotation on interaction
 
+      // Track interaction
+      this.lastInteractionTime = Date.now();
+      if (this.isTerminalFocused) {
+        this.lastFocusedInteractionTime = Date.now();
+      }
+
       switch (event.key) {
+        // Camera controls
         case "1":
           this.animateToState("default");
           break;
@@ -883,6 +1127,71 @@ export class Terminal3D {
           break;
         case "0":
           this.startIdleRotation();
+          break;
+
+        // CRT Bulge controls
+        case "-":
+        case "_":
+          if (this.screenMesh?.material?.uniforms?.bulge) {
+            const currentBulge = this.screenMesh.material.uniforms.bulge.value;
+            this.setBulge(currentBulge - 0.05);
+          }
+          break;
+        case "+":
+        case "=":
+          if (this.screenMesh?.material?.uniforms?.bulge) {
+            const currentBulge = this.screenMesh.material.uniforms.bulge.value;
+            this.setBulge(currentBulge + 0.05);
+          }
+          break;
+
+        // Scanline controls
+        case "[":
+          if (this.screenMesh?.material?.uniforms?.scanlineIntensity) {
+            const current =
+              this.screenMesh.material.uniforms.scanlineIntensity.value;
+            this.setScanlines(current - 0.01);
+          }
+          break;
+        case "]":
+          if (this.screenMesh?.material?.uniforms?.scanlineIntensity) {
+            const current =
+              this.screenMesh.material.uniforms.scanlineIntensity.value;
+            this.setScanlines(current + 0.01);
+          }
+          break;
+
+        // Brightness controls
+        case ",":
+        case "<":
+          if (this.screenMesh?.material?.uniforms?.brightness) {
+            const current = this.screenMesh.material.uniforms.brightness.value;
+            this.setBrightnessContrast(current - 0.1);
+          }
+          break;
+        case ".":
+        case ">":
+          if (this.screenMesh?.material?.uniforms?.brightness) {
+            const current = this.screenMesh.material.uniforms.brightness.value;
+            this.setBrightnessContrast(current + 0.1);
+          }
+          break;
+
+        // CRT Presets (Ctrl + number)
+        case "4":
+          if (event.ctrlKey) this.setCRTPreset("flat");
+          break;
+        case "5":
+          if (event.ctrlKey) this.setCRTPreset("modern");
+          break;
+        case "6":
+          if (event.ctrlKey) this.setCRTPreset("default");
+          break;
+        case "7":
+          if (event.ctrlKey) this.setCRTPreset("vintage");
+          break;
+        case "8":
+          if (event.ctrlKey) this.setCRTPreset("retro");
           break;
       }
     });
@@ -961,6 +1270,15 @@ export class Terminal3D {
 
     if (this.controls) {
       this.controls.update();
+    }
+
+    // Update CRT shader time uniform for subtle animations
+    if (
+      this.screenMesh &&
+      this.screenMesh.material &&
+      this.screenMesh.material.uniforms
+    ) {
+      this.screenMesh.material.uniforms.time.value = Date.now() * 0.001;
     }
 
     // Update all animation systems
