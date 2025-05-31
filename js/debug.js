@@ -267,48 +267,47 @@ export class DebugManager {
       return this.terminal3d.crtSettings[property] || 0;
     }
   }
-
   getLightingValue(property) {
     const scene = this.terminal3d.scene;
     if (!scene) return 1.0;
 
     const lightMap = {
       ambientIntensity: () =>
-        scene.children.find((l) => l.type === "AmbientLight")?.intensity || 0.9,
+        scene.children.find((l) => l.type === "AmbientLight")?.intensity || 0.6,
       mainLightIntensity: () =>
         scene.children.find(
           (l) => l.type === "DirectionalLight" && l.position.x > 7,
-        )?.intensity || 2.2,
+        )?.intensity || 1.2,
       fillLightIntensity: () =>
         scene.children.find(
           (l) => l.type === "DirectionalLight" && l.position.x < 0,
-        )?.intensity || 1.0,
+        )?.intensity || 0.4,
       monitorLightIntensity: () =>
         scene.children.find(
           (l) => l.type === "PointLight" && l.position.z === 2,
-        )?.intensity || 2.2,
+        )?.intensity || 0.8,
       rimLightIntensity: () =>
         scene.children.find(
           (l) => l.type === "DirectionalLight" && l.position.z < 0,
-        )?.intensity || 0.8,
+        )?.intensity || 0.2,
       accentLight1Intensity: () =>
         scene.children.find(
           (l) => l.type === "PointLight" && l.position.x === 4,
-        )?.intensity || 1.8,
+        )?.intensity || 0.6,
       accentLight2Intensity: () =>
         scene.children.find(
           (l) => l.type === "PointLight" && l.position.x === -4,
-        )?.intensity || 1.5,
+        )?.intensity || 0.4,
       hemiLightIntensity: () =>
         scene.children.find((l) => l.type === "HemisphereLight")?.intensity ||
-        0.8,
+        0.5,
       frontLightIntensity: () =>
         scene.children.find(
           (l) => l.type === "DirectionalLight" && l.position.z > 10,
-        )?.intensity || 1.2,
+        )?.intensity || 0.6,
       fov: () => this.terminal3d.camera?.fov || 45,
       toneMappingExposure: () =>
-        this.terminal3d.renderer?.toneMappingExposure || 1.5,
+        this.terminal3d.renderer?.toneMappingExposure || 1.0,
       shadowMapSize: () => 2048,
     };
 
@@ -454,15 +453,15 @@ export class DebugManager {
 
   resetLightingToDefaults() {
     const defaultLighting = {
-      ambientIntensity: 0.9,
-      mainLightIntensity: 2.2,
-      fillLightIntensity: 1.0,
-      monitorLightIntensity: 2.2,
-      rimLightIntensity: 0.8,
-      accentLight1Intensity: 1.8,
-      accentLight2Intensity: 1.5,
-      hemiLightIntensity: 0.8,
-      frontLightIntensity: 1.2,
+      ambientIntensity: 0.6,
+      mainLightIntensity: 1.2,
+      fillLightIntensity: 0.4,
+      monitorLightIntensity: 0.8,
+      rimLightIntensity: 0.2,
+      accentLight1Intensity: 0.6,
+      accentLight2Intensity: 0.4,
+      hemiLightIntensity: 0.5,
+      frontLightIntensity: 0.6,
     };
 
     Object.entries(defaultLighting).forEach(([property, value]) => {
@@ -470,7 +469,7 @@ export class DebugManager {
     });
 
     this.updateSliders(defaultLighting);
-    console.log("Lighting reset to defaults");
+    console.log("Lighting reset to realistic defaults");
   }
 
   resetToDefaults() {

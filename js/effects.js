@@ -20,16 +20,16 @@ export class EffectsManager {
         { OutputPass },
       ] = await Promise.all([
         import(
-          "https://cdn.skypack.dev/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js"
+          "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js"
         ),
         import(
-          "https://cdn.skypack.dev/three@0.160.0/examples/jsm/postprocessing/RenderPass.js"
+          "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js"
         ),
         import(
-          "https://cdn.skypack.dev/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js"
+          "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js"
         ),
         import(
-          "https://cdn.skypack.dev/three@0.160.0/examples/jsm/postprocessing/OutputPass.js"
+          "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/OutputPass.js"
         ),
       ]);
 

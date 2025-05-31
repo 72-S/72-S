@@ -133,6 +133,8 @@ export class Terminal3D {
       this.updateLoadingProgress(100);
       this.hideLoading();
       this.showTerminal();
+
+      window.dispatchEvent(new CustomEvent("terminalReady"));
       this.animationManager.startupAnimation();
       this.animate();
     } catch (e) {
@@ -160,11 +162,15 @@ export class Terminal3D {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.5;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    this.renderer.physicallyCorrectLights = true;
     this.renderer.gammaFactor = 2.2;
 
     document
@@ -189,10 +195,10 @@ export class Terminal3D {
   }
 
   setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0x6c7b95, 0.9);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
     this.scene.add(ambientLight);
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
     mainLight.position.set(8, 10, 6);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.setScalar(2048);
@@ -203,31 +209,31 @@ export class Terminal3D {
     mainLight.shadow.camera.right = mainLight.shadow.camera.top = 15;
     this.scene.add(mainLight);
 
-    const fillLight = new THREE.DirectionalLight(0x8be9fd, 1.0);
+    const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
     fillLight.position.set(-5, 6, -4);
     this.scene.add(fillLight);
 
-    const monitorLight = new THREE.PointLight(0x50fa7b, 2.2, 15);
+    const monitorLight = new THREE.PointLight(0x50fa7b, 0.8, 8);
     monitorLight.position.set(0, 3, 2);
     this.scene.add(monitorLight);
 
-    const rimLight = new THREE.DirectionalLight(0x50fa7b, 0.8);
+    const rimLight = new THREE.DirectionalLight(0x50fa7b, 0.2);
     rimLight.position.set(0, 4, -8);
     this.scene.add(rimLight);
 
-    const accentLight1 = new THREE.PointLight(0x8be9fd, 1.8, 18);
+    const accentLight1 = new THREE.PointLight(0x87ceeb, 0.6, 12);
     accentLight1.position.set(4, 4, 4);
     this.scene.add(accentLight1);
 
-    const accentLight2 = new THREE.PointLight(0x50fa7b, 1.5, 15);
+    const accentLight2 = new THREE.PointLight(0x50fa7b, 0.4, 10);
     accentLight2.position.set(-4, 3, 2);
     this.scene.add(accentLight2);
 
-    const hemiLight = new THREE.HemisphereLight(0x8be9fd, 0x6c5ce7, 0.8);
+    const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x2c2c54, 0.5);
     hemiLight.position.set(0, 25, 0);
     this.scene.add(hemiLight);
 
-    const frontLight = new THREE.DirectionalLight(0xf8f8ff, 1.2);
+    const frontLight = new THREE.DirectionalLight(0xf8f8ff, 0.6);
     frontLight.position.set(0, 8, 12);
     this.scene.add(frontLight);
   }

@@ -28,19 +28,40 @@ export class ModelManager {
               this.sceneMeshes.push(c);
 
               if (c.material) {
+                if (c.material.map) {
+                  c.material.map.generateMipmaps = false;
+                  c.material.map.minFilter = THREE.LinearFilter;
+                  c.material.map.magFilter = THREE.LinearFilter;
+                }
+
+                [
+                  "normalMap",
+                  "roughnessMap",
+                  "metalnessMap",
+                  "emissiveMap",
+                  "aoMap",
+                ].forEach((mapType) => {
+                  if (c.material[mapType]) {
+                    c.material[mapType].generateMipmaps = false;
+                    c.material[mapType].minFilter = THREE.LinearFilter;
+                    c.material[mapType].magFilter = THREE.LinearFilter;
+                  }
+                });
+
                 if (c.material.isMeshStandardMaterial) {
-                  c.material.envMapIntensity = 1.0;
+                  c.material.envMapIntensity = 0.3;
+
                   c.material.roughness = Math.max(
-                    0.2,
-                    c.material.roughness * 0.9,
+                    0.4,
+                    c.material.roughness * 1.2,
                   );
                   c.material.metalness = Math.min(
-                    0.9,
-                    c.material.metalness * 1.1,
+                    0.6,
+                    c.material.metalness * 0.8,
                   );
 
                   if (c.material.emissive) {
-                    c.material.emissive.multiplyScalar(1.2);
+                    c.material.emissive.multiplyScalar(0.5);
                   }
                 } else if (c.material.isMeshBasicMaterial) {
                   const newMaterial = new THREE.MeshStandardMaterial({
@@ -48,6 +69,8 @@ export class ModelManager {
                     map: c.material.map,
                     transparent: c.material.transparent,
                     opacity: c.material.opacity,
+                    roughness: 0.7,
+                    metalness: 0.1,
                   });
                   c.material = newMaterial;
                 }
