@@ -10,9 +10,16 @@ export class Terminal3D {
   constructor(options = {}) {
     this.debugEnabled = options.debug ?? false;
 
+    this.performanceMode = this.detectPerformanceMode();
+    this.frameRateTarget = this.performanceMode ? 30 : 60;
+    this.lastFrameTime = 0;
+    this.frameInterval = 1000 / this.frameRateTarget;
+
     const defaultValues = this.debugEnabled
       ? this.getDebugDefaults()
-      : this.getNormalDefaults();
+      : this.performanceMode
+        ? this.getPerformanceDefaults()
+        : this.getNormalDefaults();
 
     this.crtSettings = {
       bulge: options.bulge ?? defaultValues.bulge,
@@ -47,7 +54,7 @@ export class Terminal3D {
     this.animationId = null;
     this.isHoveringScreen = false;
     this.scrollHistory = [];
-    this.maxScrollHistory = 50;
+    this.maxScrollHistory = this.performanceMode ? 25 : 50;
     this.currentScrollPosition = 0;
 
     this.modelManager = null;
@@ -62,7 +69,42 @@ export class Terminal3D {
     this.defaultCameraPosition = new THREE.Vector3(4, 5, 10);
     this.defaultCameraTarget = new THREE.Vector3(0, 1.5, 0);
 
+    this.performanceStats = {
+      frameCount: 0,
+      lastFPSUpdate: Date.now(),
+      currentFPS: 60,
+      adaptiveQuality: 1.0,
+    };
+
     this.init();
+  }
+
+  detectPerformanceMode() {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+    if (!gl) return true;
+
+    const renderer = gl.getParameter(gl.RENDERER);
+
+    const isMobile =
+      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
+    const isLowEndGPU = /Intel|Mali|Adreno 3|Adreno 4|PowerVR SGX/i.test(
+      renderer,
+    );
+    const memory = navigator.deviceMemory || 4;
+    const cores = navigator.hardwareConcurrency || 4;
+    const isLowMemory = memory < 4;
+    const isLowCPU = cores < 4;
+
+    const isLowRes = window.screen.width < 1920 || window.screen.height < 1080;
+
+    canvas.remove();
+
+    return isMobile || isLowEndGPU || isLowMemory || isLowCPU || isLowRes;
   }
 
   getDebugDefaults() {
@@ -77,6 +119,21 @@ export class Terminal3D {
       contrast: 1.0,
       offsetX: 0,
       offsetY: 0,
+    };
+  }
+
+  getPerformanceDefaults() {
+    return {
+      bulge: 0.6,
+      scanlineIntensity: 0.05,
+      scanlineCount: 400,
+      vignetteIntensity: 0.2,
+      vignetteRadius: 0.2,
+      glowIntensity: 0.01,
+      brightness: 1.0,
+      contrast: 1.05,
+      offsetX: 1.0,
+      offsetY: 0.0,
     };
   }
 
@@ -118,7 +175,14 @@ export class Terminal3D {
       this.updateLoadingProgress(80);
 
       this.setupEventListeners();
-      await this.effectsManager.trySetupPostProcessing();
+
+      if (this.performanceMode) {
+        console.log(
+          "Performance mode enabled - reduced effects for better compatibility",
+        );
+      } else {
+        await this.effectsManager.trySetupPostProcessing();
+      }
 
       this.animationManager = new AnimationManager(this.camera, this.controls);
 
@@ -152,22 +216,32 @@ export class Terminal3D {
     this.camera.position.copy(this.defaultCameraPosition);
 
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: "high-performance",
+      antialias: !this.performanceMode,
+      powerPreference: this.performanceMode ? "default" : "high-performance",
       alpha: true,
+      precision: this.performanceMode ? "mediump" : "highp",
     });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const maxPixelRatio = this.performanceMode ? 1.5 : 2;
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, maxPixelRatio),
+    );
+
+    this.renderer.shadowMap.enabled = !this.performanceMode;
+    if (this.renderer.shadowMap.enabled) {
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
 
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    this.renderer.physicallyCorrectLights = true;
-    this.renderer.gammaFactor = 2.2;
+    if (!this.performanceMode) {
+      this.renderer.physicallyCorrectLights = true;
+      this.renderer.gammaFactor = 2.2;
+    }
 
     document
       .getElementById("scene-container")
@@ -175,7 +249,7 @@ export class Terminal3D {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
+    this.controls.dampingFactor = this.performanceMode ? 0.1 : 0.05;
     this.controls.enableZoom = false;
     this.controls.enablePan = true;
     this.controls.enableRotate = true;
@@ -191,47 +265,58 @@ export class Terminal3D {
   }
 
   setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    const ambientLight = new THREE.AmbientLight(
+      0x404040,
+      this.performanceMode ? 0.8 : 0.6,
+    );
     this.scene.add(ambientLight);
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    const mainLight = new THREE.DirectionalLight(
+      0xffffff,
+      this.performanceMode ? 1.0 : 1.2,
+    );
     mainLight.position.set(8, 10, 6);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.setScalar(2048);
-    mainLight.shadow.bias = -0.0001;
-    mainLight.shadow.camera.near = 0.1;
-    mainLight.shadow.camera.far = 50;
-    mainLight.shadow.camera.left = mainLight.shadow.camera.bottom = -15;
-    mainLight.shadow.camera.right = mainLight.shadow.camera.top = 15;
+
+    if (!this.performanceMode) {
+      mainLight.castShadow = true;
+      mainLight.shadow.mapSize.setScalar(2048);
+      mainLight.shadow.bias = -0.0001;
+      mainLight.shadow.camera.near = 0.1;
+      mainLight.shadow.camera.far = 50;
+      mainLight.shadow.camera.left = mainLight.shadow.camera.bottom = -15;
+      mainLight.shadow.camera.right = mainLight.shadow.camera.top = 15;
+    }
     this.scene.add(mainLight);
 
-    const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
-    fillLight.position.set(-5, 6, -4);
-    this.scene.add(fillLight);
+    if (!this.performanceMode) {
+      const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
+      fillLight.position.set(-5, 6, -4);
+      this.scene.add(fillLight);
+
+      const rimLight = new THREE.DirectionalLight(0x50fa7b, 0.2);
+      rimLight.position.set(0, 4, -8);
+      this.scene.add(rimLight);
+
+      const accentLight1 = new THREE.PointLight(0x87ceeb, 0.6, 12);
+      accentLight1.position.set(4, 4, 4);
+      this.scene.add(accentLight1);
+
+      const accentLight2 = new THREE.PointLight(0x50fa7b, 0.4, 10);
+      accentLight2.position.set(-4, 3, 2);
+      this.scene.add(accentLight2);
+
+      const frontLight = new THREE.DirectionalLight(0xf8f8ff, 0.6);
+      frontLight.position.set(0, 8, 12);
+      this.scene.add(frontLight);
+    }
 
     const monitorLight = new THREE.PointLight(0x50fa7b, 0.8, 8);
     monitorLight.position.set(0, 3, 2);
     this.scene.add(monitorLight);
 
-    const rimLight = new THREE.DirectionalLight(0x50fa7b, 0.2);
-    rimLight.position.set(0, 4, -8);
-    this.scene.add(rimLight);
-
-    const accentLight1 = new THREE.PointLight(0x87ceeb, 0.6, 12);
-    accentLight1.position.set(4, 4, 4);
-    this.scene.add(accentLight1);
-
-    const accentLight2 = new THREE.PointLight(0x50fa7b, 0.4, 10);
-    accentLight2.position.set(-4, 3, 2);
-    this.scene.add(accentLight2);
-
     const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x2c2c54, 0.5);
     hemiLight.position.set(0, 25, 0);
     this.scene.add(hemiLight);
-
-    const frontLight = new THREE.DirectionalLight(0xf8f8ff, 0.6);
-    frontLight.position.set(0, 8, 12);
-    this.scene.add(frontLight);
   }
 
   async setupTerminalTexture() {
@@ -261,6 +346,8 @@ export class Terminal3D {
     this.terminalTexture.offset.y = 0.0;
     this.terminalTexture.repeat.y = 1.0;
 
+    const updateInterval = this.performanceMode ? 33 : 16;
+
     this.updateTerminalTexture = () => {
       try {
         if (this.terminalTexture) {
@@ -273,7 +360,7 @@ export class Terminal3D {
 
     setInterval(() => {
       this.updateTerminalTexture();
-    }, 16);
+    }, updateInterval);
   }
 
   updateCRTSettings(newSettings) {
@@ -317,7 +404,17 @@ export class Terminal3D {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
+    let mouseEventThrottle = false;
+    const mouseThrottleDelay = this.performanceMode ? 50 : 16;
+
     this.renderer.domElement.addEventListener("mousemove", (event) => {
+      if (mouseEventThrottle) return;
+      mouseEventThrottle = true;
+
+      setTimeout(() => {
+        mouseEventThrottle = false;
+      }, mouseThrottleDelay);
+
       this.animationManager.stopIdleRotation();
 
       this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -437,6 +534,64 @@ export class Terminal3D {
         this.hiddenInput.blur();
       }
     });
+
+    if (this.performanceMode) {
+      this.setupPerformanceMonitoring();
+    }
+  }
+
+  setupPerformanceMonitoring() {
+    setInterval(() => {
+      this.monitorPerformance();
+    }, 2000);
+  }
+
+  monitorPerformance() {
+    const now = Date.now();
+    const deltaTime = now - this.performanceStats.lastFPSUpdate;
+
+    if (deltaTime >= 1000) {
+      this.performanceStats.currentFPS =
+        (this.performanceStats.frameCount * 1000) / deltaTime;
+      this.performanceStats.frameCount = 0;
+      this.performanceStats.lastFPSUpdate = now;
+
+      if (this.performanceStats.currentFPS < 25) {
+        this.performanceStats.adaptiveQuality = Math.max(
+          0.5,
+          this.performanceStats.adaptiveQuality - 0.1,
+        );
+        this.applyAdaptiveQuality();
+      } else if (
+        this.performanceStats.currentFPS > 40 &&
+        this.performanceStats.adaptiveQuality < 1.0
+      ) {
+        this.performanceStats.adaptiveQuality = Math.min(
+          1.0,
+          this.performanceStats.adaptiveQuality + 0.05,
+        );
+        this.applyAdaptiveQuality();
+      }
+    }
+  }
+
+  applyAdaptiveQuality() {
+    const quality = this.performanceStats.adaptiveQuality;
+
+    const targetPixelRatio = Math.min(window.devicePixelRatio * quality, 1.5);
+    this.renderer.setPixelRatio(targetPixelRatio);
+
+    if (this.crtShader) {
+      const adaptedSettings = {
+        ...this.crtSettings,
+        scanlineCount: Math.floor(this.crtSettings.scanlineCount * quality),
+        scanlineIntensity: this.crtSettings.scanlineIntensity * quality,
+      };
+      this.crtShader.updateSettings(
+        adaptedSettings,
+        this.modelManager.screenMesh,
+      );
+    }
   }
 
   captureTerminalSnapshot() {
@@ -514,6 +669,15 @@ export class Terminal3D {
   }
 
   animate() {
+    const now = Date.now();
+
+    if (now - this.lastFrameTime < this.frameInterval) {
+      this.animationId = requestAnimationFrame(() => this.animate());
+      return;
+    }
+
+    this.lastFrameTime = now;
+    this.performanceStats.frameCount++;
     this.animationId = requestAnimationFrame(() => this.animate());
 
     if (this.controls) {
@@ -521,10 +685,7 @@ export class Terminal3D {
     }
 
     if (this.crtShader) {
-      this.crtShader.updateTime(
-        Date.now() * 0.001,
-        this.modelManager.screenMesh,
-      );
+      this.crtShader.updateTime(now * 0.001, this.modelManager.screenMesh);
     }
 
     if (this.animationManager) {
@@ -549,5 +710,6 @@ export class Terminal3D {
     if (this.terminalTexture) this.terminalTexture.dispose();
     if (this.crtShader) this.crtShader.dispose();
     if (this.debugManager) this.debugManager.dispose();
+    if (this.modelManager) this.modelManager.dispose();
   }
 }

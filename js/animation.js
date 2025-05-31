@@ -46,19 +46,52 @@ export class AnimationManager {
     };
     this.lastValidCameraPosition = new THREE.Vector3();
     this.lastValidCameraTarget = new THREE.Vector3();
+
+    this.performanceMode = this.detectPerformanceMode();
+    this.animationFrameSkip = this.performanceMode ? 2 : 1;
+    this.frameCounter = 0;
+  }
+
+  detectPerformanceMode() {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+    if (!gl) return true;
+
+    const renderer = gl.getParameter(gl.RENDERER);
+
+    const isMobile =
+      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
+
+    const isLowEndGPU = /Intel|Mali|Adreno 3|Adreno 4|PowerVR SGX/i.test(
+      renderer,
+    );
+
+    const memory = navigator.deviceMemory || 4;
+    const isLowMemory = memory < 4;
+
+    const cores = navigator.hardwareConcurrency || 4;
+    const isLowCPU = cores < 4;
+
+    return isMobile || isLowEndGPU || isLowMemory || isLowCPU;
   }
 
   startupAnimation() {
     this.startupPhase = "waiting";
 
+    const delay = this.performanceMode ? 500 : 1000;
     setTimeout(() => {
       this.startupPhase = "focusing";
-      this.animateToState("focused", 2000, () => {
+      const duration = this.performanceMode ? 1500 : 2000;
+      this.animateToState("focused", duration, () => {
         this.startupPhase = "complete";
         this.lastInteractionTime = Date.now();
         this.lastFocusedInteractionTime = Date.now();
       });
-    }, 1000);
+    }, delay);
   }
 
   animateToState(stateName, duration = 1500, onComplete = null) {
@@ -68,12 +101,27 @@ export class AnimationManager {
     this.idleRotationActive = false;
     this.currentCameraState = stateName;
 
+    if (this.performanceMode) {
+      duration = Math.max(duration * 0.7, 800);
+    }
+
     const targetState = this.cameraStates[stateName];
     const startPosition = this.camera.position.clone();
     const startTarget = this.controls.target.clone();
     const startTime = Date.now();
 
     const animateStep = () => {
+      this.frameCounter++;
+      if (
+        this.performanceMode &&
+        this.frameCounter % this.animationFrameSkip !== 0
+      ) {
+        if (Date.now() - startTime < duration) {
+          requestAnimationFrame(animateStep);
+        }
+        return;
+      }
+
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easeProgress = this.easeInOutCubic(progress);
@@ -110,16 +158,23 @@ export class AnimationManager {
     const timeSinceLastFocusedInteraction =
       currentTime - this.lastFocusedInteractionTime;
 
+    const inactivityDelay = this.performanceMode
+      ? this.inactivityDelay * 1.5
+      : this.inactivityDelay;
+    const focusedInactivityDelay = this.performanceMode
+      ? this.focusedInactivityDelay * 1.2
+      : this.focusedInactivityDelay;
+
     if (this.currentCameraState === "focused" && isTerminalFocused) {
       if (
-        timeSinceLastFocusedInteraction > this.focusedInactivityDelay &&
+        timeSinceLastFocusedInteraction > focusedInactivityDelay &&
         !this.idleRotationActive
       ) {
         this.startIdleRotation();
       }
     } else if (this.currentCameraState !== "focused") {
       if (
-        timeSinceLastInteraction > this.inactivityDelay &&
+        timeSinceLastInteraction > inactivityDelay &&
         !this.idleRotationActive
       ) {
         this.startIdleRotation();
@@ -127,8 +182,12 @@ export class AnimationManager {
     }
 
     if (this.idleRotationActive) {
-      this.idleAngle += this.idleRotationSpeed;
-      this.idleRotationCount += this.idleRotationSpeed;
+      const rotationSpeed = this.performanceMode
+        ? this.idleRotationSpeed * 0.7
+        : this.idleRotationSpeed;
+
+      this.idleAngle += rotationSpeed;
+      this.idleRotationCount += rotationSpeed;
 
       if (this.idleRotationCount >= this.maxIdleRotation) {
         this.resetIdleRotation();
@@ -149,7 +208,8 @@ export class AnimationManager {
     this.lastFocusedInteractionTime = Date.now();
 
     if (this.currentCameraState === "idle") {
-      this.animateToState("default", 1000);
+      const duration = this.performanceMode ? 800 : 1000;
+      this.animateToState("default", duration);
     }
   }
 
@@ -174,7 +234,7 @@ export class AnimationManager {
     const startTarget = this.controls.target.clone();
     const targetTarget = new THREE.Vector3(0, 1.5, 0);
     const startTime = Date.now();
-    const duration = 1500;
+    const duration = this.performanceMode ? 1200 : 1500;
 
     const animateToIdleStart = () => {
       const elapsed = Date.now() - startTime;
@@ -204,7 +264,9 @@ export class AnimationManager {
     this.idleRotationActive = false;
     this.idleRotationCount = 0;
 
-    this.animateToState("default", 1500, () => {
+    const duration = this.performanceMode ? 1200 : 1500;
+    this.animateToState("default", duration, () => {
+      const timeout = this.performanceMode ? 1500 : 2000;
       setTimeout(() => {
         if (
           this.currentCameraState === "default" &&
@@ -212,7 +274,7 @@ export class AnimationManager {
         ) {
           this.startIdleRotation();
         }
-      }, 2000);
+      }, timeout);
     });
   }
 
@@ -252,7 +314,8 @@ export class AnimationManager {
   }
 
   correctCameraPosition() {
-    this.animateToState("default", 1000);
+    const duration = this.performanceMode ? 800 : 1000;
+    this.animateToState("default", duration);
   }
 
   easeInOutCubic(t) {
